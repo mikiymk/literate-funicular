@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "closure.h": "c",
+        "derives.h": "c",
+        "gram.h": "c",
+        "complain.h": "c",
+        "files.h": "c"
+    }
+}
