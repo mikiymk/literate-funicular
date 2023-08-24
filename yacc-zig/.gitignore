@@ -1,0 +1,5 @@
+config.h
+Makefile
+conftest*
+configure*
+!configure.zig
