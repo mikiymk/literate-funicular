@@ -1,9 +1,5 @@
 const std = @import("std");
 
-pub fn main() !void {
-    std.debug.print("zig {s}\n", .{"zag"});
-}
-
 // #include <sys/types.h>
 // #include <fcntl.h>
 // #include "paths.h"
@@ -251,25 +247,20 @@ pub fn main() !void {
 // 		code_file = output_file;
 // }
 
-// int
-// main(int argc, char *argv[])
-// {
-// #ifndef HAVE_PROGNAME
-// 	__progname = argv[0];
-// #endif
+pub fn main() !void {
+    const allocator = std.heap.page_allocator;
 
-// #ifdef HAVE_PLEDGE
-// 	if (pledge("stdio rpath wpath cpath", NULL) == -1)
-// 		fatal("pledge: invalid arguments");
-// #endif
+    var argv: []const []const u8 = try std.process.argsAlloc(allocator);
+    var argc: usize = argv.len;
+    _ = argc;
 
-// 	getargs(argc, argv);
-// 	open_files();
-// 	reader();
-// 	lr0();
-// 	lalr();
-// 	make_parser();
-// 	verbose();
-// 	output();
-// 	return (0);
-// }
+    // getargs(argc, argv);
+    // open_files();
+    // reader();
+    // lr0();
+    // lalr();
+    // make_parser();
+    // verbose();
+    // output();
+    return;
+}
