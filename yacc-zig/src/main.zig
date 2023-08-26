@@ -1,5 +1,9 @@
 const std = @import("std");
 
+pub fn main() !void {
+    std.debug.print("zig {s}\n", .{"zag"});
+}
+
 // #include <sys/types.h>
 // #include <fcntl.h>
 // #include "paths.h"
