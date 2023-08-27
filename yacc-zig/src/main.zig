@@ -1,4 +1,5 @@
 const std = @import("std");
+const getopt = @import("./getopt.zig");
 
 // #include <sys/types.h>
 // #include <fcntl.h>
@@ -12,23 +13,33 @@ const std = @import("std");
 // #endif
 
 // char dflag;
+var dflag = false;
 // char lflag;
+var lflag = false;
 // char rflag;
+var rflag = false;
 // char tflag;
+var tflag = false;
 // char vflag;
+var vflag = false;
 
 // char *symbol_prefix;
+var symbol_prefix: []const u8 = undefined;
 // char *file_prefix = "y";
+var file_prefix: []const u8 = "y";
 
 // int lineno;
 // int outline;
 
 // int explicit_file_name;
+var explicit_file_name = false;
 
 // char *code_file_name;
 // char *defines_file_name;
 // char *input_file_name = "";
+var input_file_name: []const u8 = "";
 // char *output_file_name;
+var output_file_name: ?[]const u8 = null;
 // char *verbose_file_name;
 
 // FILE *action_file;	/* a temp file, used to save actions associated    */
@@ -36,6 +47,7 @@ const std = @import("std");
 // FILE *code_file;	/* y.code.c (used when the -r option is specified) */
 // FILE *defines_file;	/* y.tab.h					   */
 // FILE *input_file;	/* the input file				   */
+var input_file: std.fs.File = undefined;
 // FILE *output_file;	/* y.tab.c					   */
 // FILE *text_file;	/* a temp file, used to save text until all	   */
 // 			/* symbols have been defined			   */
@@ -75,61 +87,46 @@ const std = @import("std");
 // 	fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", __progname);
 // 	exit(1);
 // }
+pub fn usage(arg0: [:0]const u8) !void {
+    const stderr = std.io.getStdErr();
+    stderr.writer().print("usage: {s} [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", .{arg0}) catch unreachable;
 
-// void
-// getargs(int argc, char *argv[])
-// {
-// 	int ch;
+    return error.Usage;
+}
 
-// 	while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1) {
-// 		switch (ch) {
-// 		case 'b':
-// 			file_prefix = optarg;
-// 			break;
+pub fn getargs(argc: usize, argv: [][:0]const u8) !void {
+    var iter = getopt.getopt(argc, argv, "b:dlo:p:rtv");
 
-// 		case 'd':
-// 			dflag = 1;
-// 			break;
+    while (iter.next() catch return usage(argv[0])) |ch| {
+        switch (ch.opt) {
+            'b' => file_prefix = ch.arg orelse continue,
+            'd' => dflag = true,
+            'l' => lflag = true,
+            'o' => {
+                output_file_name = ch.arg orelse continue;
+                explicit_file_name = true;
+            },
+            'p' => symbol_prefix = ch.arg orelse continue,
+            'r' => rflag = true,
+            't' => tflag = true,
+            'v' => vflag = true,
+            else => try usage(argv[0]),
+        }
+    }
 
-// 		case 'l':
-// 			lflag = 1;
-// 			break;
+    var my_argc = argc - iter.optind;
+    var my_argv = argv[iter.optind..];
 
-// 		case 'o':
-// 			output_file_name = optarg;
-// 			explicit_file_name = 1;
-// 			break;
+    if (my_argc != 1) {
+        try usage(argv[0]);
+    }
 
-// 		case 'p':
-// 			symbol_prefix = optarg;
-// 			break;
-
-// 		case 'r':
-// 			rflag = 1;
-// 			break;
-
-// 		case 't':
-// 			tflag = 1;
-// 			break;
-
-// 		case 'v':
-// 			vflag = 1;
-// 			break;
-
-// 		default:
-// 			usage();
-// 		}
-// 	}
-// 	argc -= optind;
-// 	argv += optind;
-
-// 	if (argc != 1)
-// 		usage();
-// 	if (strcmp(*argv, "-") == 0)
-// 		input_file = stdin;
-// 	else
-// 		input_file_name = *argv;
-// }
+    if (std.mem.order(u8, my_argv[0], "-") == .eq) {
+        input_file = std.io.getStdIn();
+    } else {
+        input_file_name = my_argv[0];
+    }
+}
 
 // void *
 // allocate(size_t n)
@@ -250,11 +247,10 @@ const std = @import("std");
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var argv: []const []const u8 = try std.process.argsAlloc(allocator);
+    var argv: [][:0]const u8 = try std.process.argsAlloc(allocator);
     var argc: usize = argv.len;
-    _ = argc;
 
-    // getargs(argc, argv);
+    try getargs(argc, argv);
     // open_files();
     // reader();
     // lr0();
