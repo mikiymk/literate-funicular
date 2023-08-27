@@ -94,8 +94,8 @@ pub fn usage(arg0: [:0]const u8) !void {
     return error.Usage;
 }
 
-pub fn getargs(argc: usize, argv: [][:0]const u8) !void {
-    var iter = getopt.getopt(argc, argv, "b:dlo:p:rtv");
+pub fn getargs(argv: [][:0]const u8) !void {
+    var iter = getopt.getopt(argv, "b:dlo:p:rtv");
 
     while (iter.next() catch return usage(argv[0])) |ch| {
         switch (ch.opt) {
@@ -114,10 +114,9 @@ pub fn getargs(argc: usize, argv: [][:0]const u8) !void {
         }
     }
 
-    var my_argc = argc - iter.optind;
     var my_argv = argv[iter.optind..];
 
-    if (my_argc != 1) {
+    if (my_argv.len != 1) {
         try usage(argv[0]);
     }
 
@@ -248,9 +247,8 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
     var argv: [][:0]const u8 = try std.process.argsAlloc(allocator);
-    var argc: usize = argv.len;
 
-    try getargs(argc, argv);
+    try getargs(argv);
     // open_files();
     // reader();
     // lr0();

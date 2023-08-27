@@ -1,8 +1,7 @@
 const std = @import("std");
 
-pub fn getopt(argc: usize, argv: [][:0]const u8, comptime optstring: []const u8) OptionsIterator {
+pub fn getopt(argv: [][:0]const u8, comptime optstring: []const u8) OptionsIterator {
     return OptionsIterator{
-        .argc = argc,
         .argv = argv,
         .optstring = parseOptString(optstring),
     };
@@ -14,7 +13,6 @@ const Option = struct {
 };
 
 const OptionsIterator = struct {
-    argc: usize,
     argv: [][:0]const u8,
     optstring: []const OptFlag,
 
