@@ -13,7 +13,7 @@ const Allocator = std.mem.Allocator;
 // // #include <unistd.h>
 // #include "defs.h"
 
-var __progname: ?[:0]const u8 = null;
+var __progname: [:0]const u8 = undefined;
 
 // char dflag;
 var dflag = false;
@@ -38,9 +38,9 @@ var file_prefix: []const u8 = "y";
 var explicit_file_name = false;
 
 // char *code_file_name;
-pub var code_file_name: ?[]const u8 = null;
+pub var code_file_name: []const u8 = undefined;
 // char *defines_file_name;
-pub var defines_file_name: ?[]const u8 = null;
+pub var defines_file_name: []const u8 = undefined;
 // char *input_file_name = "";
 pub var input_file_name: []const u8 = "";
 // char *output_file_name;
@@ -148,16 +148,24 @@ pub fn getargs(argv: [][:0]const u8) !void {
 // }
 
 pub fn create_file_names(allocator: Allocator) !void {
-    if (output_file_name == null) {
+    if (output_file_name == undefined) {
         // asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX) == -1
-        output_file_name = std.fmt.allocPrint(allocator, "{s}{s}", .{ file_prefix, defs.OUTPUT_SUFFIX }) catch {
+        output_file_name = std.fmt.allocPrint(
+            allocator,
+            "{s}{s}",
+            .{ file_prefix, defs.OUTPUT_SUFFIX },
+        ) catch {
             try error_zig.no_space();
         };
     }
 
     if (rflag) {
         // asprintf(&code_file_name, "%s%s", file_prefix, CODE_SUFFIX) == -1
-        code_file_name = std.fmt.allocPrint(allocator, "{s}{s}", .{ file_prefix, defs.CODE_SUFFIX }) catch {
+        code_file_name = std.fmt.allocPrint(
+            allocator,
+            "{s}{s}",
+            .{ file_prefix, defs.CODE_SUFFIX },
+        ) catch {
             try error_zig.no_space();
         };
     } else {
@@ -166,14 +174,15 @@ pub fn create_file_names(allocator: Allocator) !void {
 
     if (dflag) {
         if (explicit_file_name) {
-            defines_file_name = std.fmt.allocPrint(allocator, "{s}", .{output_file_name}) catch null;
-            if (defines_file_name == null) {
+            defines_file_name = std.fmt.allocPrint(allocator, "{s}", .{output_file_name}) catch {
                 try error_zig.no_space();
-            }
+            };
 
             // does the output_file_name have a known suffix
-            var iter = std.mem.splitBackwardsScalar(u8, output_file_name orelse "", '.');
-            var suffix = iter.next();
+            var suffix = blk: {
+                while (0) {}
+                break :blk 0;
+            };
             if (if (suffix) |suffix_|
                 (!std.mem.eql(u8, suffix_, ".c") or // good, old-fashioned C
                     !std.mem.eql(u8, suffix_, ".C") or // C++, or C on Windows
@@ -203,6 +212,7 @@ pub fn create_file_names(allocator: Allocator) !void {
             };
         }
     }
+
     // if (vflag) {
     // 	if (asprintf(&verbose_file_name, "%s%s", file_prefix,
     // 		     VERBOSE_SUFFIX) == -1)
