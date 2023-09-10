@@ -37,7 +37,7 @@
 #include <fcntl.h>
 #include "paths.h"
 #include <stdlib.h>
-// #include <unistd.h>
+#include <unistd.h>
 #include "defs.h"
 
 #ifndef HAVE_PROGNAME
