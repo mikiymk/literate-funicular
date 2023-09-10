@@ -1,4 +1,5 @@
 const std = @import("std");
+const main = @import("./main.zig");
 
 // /* routines for printing error messages  */
 
@@ -12,12 +13,12 @@ const std = @import("std");
 // 	exit(2);
 // }
 
-// void
-// no_space(void)
-// {
-// 	fprintf(stderr, "%s: yacc is out of space\n", input_file_name);
-// 	exit(2);
-// }
+pub fn no_space() error{NoReturn}!noreturn {
+    const stderr = std.io.getStdErr().writer();
+
+    stderr.print("{s}: yacc is out of space\n", .{main.input_file_name}) catch {};
+    return error.NoReturn;
+}
 
 // void
 // open_error(char *filename)

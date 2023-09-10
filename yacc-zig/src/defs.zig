@@ -49,9 +49,9 @@ const BACKSLASH = '\\'; // backslash
 
 // defines for constructing filenames
 
-const CODE_SUFFIX = ".code.c";
+pub const CODE_SUFFIX = ".code.c";
 const DEFINES_SUFFIX = ".tab.h";
-const OUTPUT_SUFFIX = ".tab.c";
+pub const OUTPUT_SUFFIX = ".tab.c";
 const VERBOSE_SUFFIX = ".output";
 
 // keyword codes
@@ -96,22 +96,24 @@ fn NUMERIC_VALUE(c: u8) u8 {
 // symbol macros
 
 fn ISTOKEN(s: comptime_int) bool {
-    return ((s) < start_symbol);
+    _ = s;
+    // return ((s) < start_symbol);
 }
 
 fn ISVAR(s: comptime_int) bool {
-    return ((s) >= start_symbol);
+    _ = s;
+    // return ((s) >= start_symbol);
 }
 
 // storage allocation macros
 
-fn NEW(t) T {
-    return (allocate(sizeof(t)));
-}
+// fn NEW(t) T {
+//     return (allocate(sizeof(t)));
+// }
 
-fn NEW2(n, t) T {
-    return (allocate((n) * sizeof(t)));
-}
+// fn NEW2(n, t) T {
+//     return (allocate((n) * sizeof(t)));
+// }
 
 /// the structure of a symbol table entry
 const bucket = struct {
