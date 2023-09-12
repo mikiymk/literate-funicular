@@ -46,6 +46,7 @@ pub var input_file_name: []const u8 = "";
 // char *output_file_name;
 var output_file_name: ?[]const u8 = null;
 // char *verbose_file_name;
+var verbose_file_name: ?[]const u8 = null;
 
 // FILE *action_file;	/* a temp file, used to save actions associated    */
 // 			/* with rules until the parser is written	   */
@@ -148,7 +149,7 @@ pub fn getargs(argv: [][:0]const u8) !void {
 // }
 
 pub fn create_file_names(allocator: Allocator) !void {
-    if (output_file_name == undefined) {
+    if (output_file_name == null) {
         // asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX) == -1
         output_file_name = std.fmt.allocPrint(
             allocator,
@@ -169,20 +170,36 @@ pub fn create_file_names(allocator: Allocator) !void {
             try error_zig.no_space();
         };
     } else {
-        code_file_name = output_file_name;
+        code_file_name = output_file_name.?;
     }
 
     if (dflag) {
         if (explicit_file_name) {
-            defines_file_name = std.fmt.allocPrint(allocator, "{s}", .{output_file_name}) catch {
+            // defines_file_name = strdup(output_file_name);
+            // if (defines_file_name == 0)
+            //     no_space();
+            defines_file_name = std.fmt.allocPrint(
+                allocator,
+                "{?s}",
+                .{output_file_name},
+            ) catch {
                 try error_zig.no_space();
             };
 
             // does the output_file_name have a known suffix
-            var suffix = blk: {
-                while (0) {}
-                break :blk 0;
+            // (suffix = strrchr(output_file_name, '.')) != 0
+            var suffix: ?[]const u8 = blk: {
+                var i = output_file_name.?.len;
+                while (0 <= i) {
+                    i -= 1;
+                    const char = output_file_name.?[i];
+                    if (char == '.') {
+                        break :blk output_file_name.?[i .. output_file_name.?.len - 1];
+                    }
+                }
+                break :blk null;
             };
+
             if (if (suffix) |suffix_|
                 (!std.mem.eql(u8, suffix_, ".c") or // good, old-fashioned C
                     !std.mem.eql(u8, suffix_, ".C") or // C++, or C on Windows
@@ -192,32 +209,43 @@ pub fn create_file_names(allocator: Allocator) !void {
             else
                 false)
             { // C++ (Windows)
-                std.fmt.bufPrint(defines_file_name, "{s}.h", .{output_file_name[0 .. output_file_name.len - suffix.len]});
-                @memcpy(defines_file_name, output_file_name);
+                const defines_file_name_len = output_file_name.?.len - suffix.?.len + 2;
+
+                var name = try allocator.alloc(u8, defines_file_name_len);
+                @memcpy(name, output_file_name.?[0 .. output_file_name.?.len - suffix.?.len + 1]);
+                name[output_file_name.?.len - suffix.?.len + 1] = 'h';
+                name[output_file_name.?.len - suffix.?.len + 2] = '\x00';
+
+                defines_file_name = name;
             } else {
                 const stderr = std.io.getStdErr().writer();
-                stderr.print(
-                    "{s}: suffix of output file name {s} not recognized, no -d file generated.\n",
+                try stderr.print(
+                    "{s}: suffix of output file name {?s} not recognized, no -d file generated.\n",
                     .{ __progname, output_file_name },
                 );
 
-                dflag = 0;
+                dflag = false;
                 allocator.free(defines_file_name);
-                defines_file_name = 0;
+                defines_file_name = "";
             }
         } else {
-            // asprintf(&defines_file_name, "%s%s", file_prefix, DEFINES_SUFFIX) == -1
-            defines_file_name = std.fmt.allocPrint(allocator, "{s}{s}", .{ file_prefix, defs.DEFINES_SUFFIX }) catch {
+            // asprintf(&defines_file_name, "%s%s", file_prefix, DEFINES_SUFFIX)
+            defines_file_name = std.fmt.allocPrint(
+                allocator,
+                "{s}{s}",
+                .{ file_prefix, defs.DEFINES_SUFFIX },
+            ) catch {
                 try error_zig.no_space();
             };
         }
     }
 
-    // if (vflag) {
-    // 	if (asprintf(&verbose_file_name, "%s%s", file_prefix,
-    // 		     VERBOSE_SUFFIX) == -1)
-    // 		no_space();
-    // }
+    if (vflag) {
+        // asprintf(&verbose_file_name, "%s%s", file_prefix, VERBOSE_SUFFIX) == -1
+        verbose_file_name = std.fmt.allocPrint(allocator, "{s}{s}", .{ file_prefix, defs.VERBOSE_SUFFIX }) catch {
+            try error_zig.no_space();
+        };
+    }
 }
 
 // FILE *

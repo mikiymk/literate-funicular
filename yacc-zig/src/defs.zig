@@ -50,9 +50,9 @@ const BACKSLASH = '\\'; // backslash
 // defines for constructing filenames
 
 pub const CODE_SUFFIX = ".code.c";
-const DEFINES_SUFFIX = ".tab.h";
+pub const DEFINES_SUFFIX = ".tab.h";
 pub const OUTPUT_SUFFIX = ".tab.c";
-const VERBOSE_SUFFIX = ".output";
+pub const VERBOSE_SUFFIX = ".output";
 
 // keyword codes
 
