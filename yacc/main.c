@@ -137,7 +137,7 @@ void getargs(int argc, char *argv[])
 
 		case 'd':
 			// -d
-			// todo
+			// ヘッダーファイルを作成します。
 			dflag = 1;
 			break;
 
@@ -162,7 +162,7 @@ void getargs(int argc, char *argv[])
 
 		case 'r':
 			// -r
-			// todo
+			// コードファイルを出力ファイルと別で作成します。
 			rflag = 1;
 			break;
 
@@ -215,32 +215,46 @@ allocate(size_t n)
 	return (v);
 }
 
+/**
+ * create_file_names
+ *
+ * ファイル名を作成します
+ */
 void create_file_names(void)
 {
+	// -oオプションがなかった場合、output_fileは未設定の状態です。
 	if (output_file_name == NULL)
 	{
+		// {prefix}.tab.cになります。
 		if (asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX) == -1)
 			no_space();
 	}
+	// -rオプション
 	if (rflag)
 	{
+		// {prefix}.code.cになります。
 		if (asprintf(&code_file_name, "%s%s", file_prefix, CODE_SUFFIX) == -1)
 			no_space();
 	}
 	else
 		code_file_name = output_file_name;
 
+	// -dオプション
 	if (dflag)
 	{
+		// -oオプションがある場合
 		if (explicit_file_name)
 		{
 			char *suffix;
+
+			// 出力ファイル名と同じ名前の.hファイル名を作成します
 
 			defines_file_name = strdup(output_file_name);
 			if (defines_file_name == 0)
 				no_space();
 
 			/* does the output_file_name have a known suffix */
+			// 拡張子が以下のうちにあるなら
 			if ((suffix = strrchr(output_file_name, '.')) != 0 &&
 				(!strcmp(suffix, ".c") ||	/* good, old-fashioned C */
 				 !strcmp(suffix, ".C") ||	/* C++, or C on Windows */
@@ -248,13 +262,16 @@ void create_file_names(void)
 				 !strcmp(suffix, ".cxx") || /* C++ */
 				 !strcmp(suffix, ".cpp")))
 			{ /* C++ (Windows) */
+				// そこの部分を.hで終わらせる
 				strncpy(defines_file_name, output_file_name,
 						suffix - output_file_name + 1);
 				defines_file_name[suffix - output_file_name + 1] = 'h';
 				defines_file_name[suffix - output_file_name + 2] = '\0';
 			}
+			// それ以外の場合
 			else
 			{
+				// エラー出力して、ヘッダーファイルを使用しないで続ける
 				fprintf(stderr, "%s: suffix of output file name %s"
 								" not recognized, no -d file generated.\n",
 						__progname, output_file_name);
@@ -263,23 +280,27 @@ void create_file_names(void)
 				defines_file_name = 0;
 			}
 		}
+		// -oオプションがない場合
 		else
 		{
+			// {prefix}.tab.hになります。
 			if (asprintf(&defines_file_name, "%s%s", file_prefix,
 						 DEFINES_SUFFIX) == -1)
 				no_space();
 		}
 	}
+
+	// -vオプション
 	if (vflag)
 	{
+		// {prefix}.outputになります。
 		if (asprintf(&verbose_file_name, "%s%s", file_prefix,
 					 VERBOSE_SUFFIX) == -1)
 			no_space();
 	}
 }
 
-FILE *
-create_temp(void)
+FILE *create_temp(void)
 {
 	FILE *f;
 
@@ -289,6 +310,9 @@ create_temp(void)
 	return f;
 }
 
+// open_files
+//
+// 必要なファイルを開く
 void open_files(void)
 {
 	create_file_names();
