@@ -102,14 +102,26 @@ void getargs(int, char *[]);
 void create_file_names(void);
 void open_files(void);
 
+// usage
+//
+// noreturn
+// 標準エラー出力に使い方を表示してエラー終了する
 void usage(void)
 {
 	fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", __progname);
 	exit(1);
 }
 
+// getargs
+//
+// 引数
+// - `argc` - 引数の数
+// - `argv` - 引数文字列の配列
+//
+// プログラムの引数を読み込んで、オプションに対応したグローバル変数を設定する
 void getargs(int argc, char *argv[])
 {
+	// getoptの戻り値を受け取る変数
 	int ch;
 
 	while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1)
@@ -117,49 +129,73 @@ void getargs(int argc, char *argv[])
 		switch (ch)
 		{
 		case 'b':
+			// -b file_prefix
+			// ファイル接頭辞を設定する
+			// デフォルトは"y"
 			file_prefix = optarg;
 			break;
 
 		case 'd':
+			// -d
+			// todo
 			dflag = 1;
 			break;
 
 		case 'l':
+			// -l
+			// todo
 			lflag = 1;
 			break;
 
 		case 'o':
+			// -o output_file
+			// 出力ファイルのファイル名を設定する
 			output_file_name = optarg;
 			explicit_file_name = 1;
 			break;
 
 		case 'p':
+			// -p symbol_prefix
+			// 出力ファイルの中のシンボル名の接頭辞を設定する
 			symbol_prefix = optarg;
 			break;
 
 		case 'r':
+			// -r
+			// todo
 			rflag = 1;
 			break;
 
 		case 't':
+			// -t
+			// todo
 			tflag = 1;
 			break;
 
 		case 'v':
+			// -v
+			// verboseモードを設定する
+			// 処理中の内容を詳しく出力する
 			vflag = 1;
 			break;
 
 		default:
+			// 上記以外のオプションを受け取った場合、使い方を表示して終了
 			usage();
 		}
 	}
+
+	// 上のオプション解析で解析済みの引数をスキップする
 	argc -= optind;
 	argv += optind;
 
+	// ただ一つの引数でない場合は使い方を表示して終了
 	if (argc != 1)
 		usage();
+	// 引数が"-"なら標準入力を入力ファイルとする
 	if (strcmp(*argv, "-") == 0)
 		input_file = stdin;
+	// それ以外の場合、入力ファイルを受け取る
 	else
 		input_file_name = *argv;
 }
@@ -294,13 +330,23 @@ void open_files(void)
 		code_file = output_file;
 }
 
+// # main関数
+//
+// プログラムで最初に実行される関数
 int main(int argc, char *argv[])
 {
+	// __prognameはプログラム名
+	// なかったら用意する
 #ifndef HAVE_PROGNAME
 	__progname = argv[0];
 #endif
 
 #ifdef HAVE_PLEDGE
+	// pledgeは機能を有効にする関数
+	// stdio = 標準入出力
+	// rpath = 書き込み用ファイルシステム
+	// wpath = 読み込み用ファイルシステム
+	// cpath = ファイル・ディレクトリ作成用ファイルシステム
 	if (pledge("stdio rpath wpath cpath", NULL) == -1)
 		fatal("pledge: invalid arguments");
 #endif
