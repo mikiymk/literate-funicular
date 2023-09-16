@@ -13,7 +13,7 @@ const Allocator = std.mem.Allocator;
 // // #include <unistd.h>
 // #include "defs.h"
 
-var __progname: [:0]const u8 = undefined;
+var progname: [:0]const u8 = undefined;
 
 // char dflag;
 var dflag = false;
@@ -93,7 +93,7 @@ var input_file: std.fs.File = undefined;
 // 	fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", __progname);
 // 	exit(1);
 // }
-pub fn usage(arg0: [:0]const u8) !void {
+pub fn usage(arg0: [:0]const u8) error{Usage} {
     const stderr = std.io.getStdErr();
     stderr.writer().print("usage: {s} [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", .{arg0}) catch unreachable;
 
@@ -102,9 +102,9 @@ pub fn usage(arg0: [:0]const u8) !void {
 
 pub fn getargs(argv: [][:0]const u8) !void {
     var iter = getopt.getopt(argv, "b:dlo:p:rtv");
-    __progname = argv[0];
+    progname = argv[0];
 
-    while (iter.next() catch return usage(argv[0])) |ch| {
+    while (iter.next() catch return usage(progname)) |ch| {
         switch (ch.opt) {
             'b' => file_prefix = ch.arg orelse continue,
             'd' => dflag = true,
@@ -117,14 +117,14 @@ pub fn getargs(argv: [][:0]const u8) !void {
             'r' => rflag = true,
             't' => tflag = true,
             'v' => vflag = true,
-            else => try usage(argv[0]),
+            else => return usage(progname),
         }
     }
 
     var my_argv = argv[iter.optind..];
 
     if (my_argv.len != 1) {
-        try usage(argv[0]);
+        return usage(progname);
     }
 
     if (std.mem.order(u8, my_argv[0], "-") == .eq) {
@@ -188,17 +188,26 @@ pub fn create_file_names(allocator: Allocator) !void {
 
             // does the output_file_name have a known suffix
             // (suffix = strrchr(output_file_name, '.')) != 0
-            var suffix: ?[]const u8 = blk: {
+            var result: struct { file_name: []const u8, suffix: []const u8 } = blk: {
                 var i = output_file_name.?.len;
-                while (0 <= i) {
+                while (0 < i) {
                     i -= 1;
                     const char = output_file_name.?[i];
                     if (char == '.') {
-                        break :blk output_file_name.?[i .. output_file_name.?.len - 1];
+                        break :blk .{
+                            .file_name = output_file_name.?[0..i],
+                            .suffix = output_file_name.?[i .. output_file_name.?.len - 1],
+                        };
                     }
                 }
-                break :blk null;
+                break :blk .{
+                    .file_name = output_file_name.?,
+                    .suffix = "",
+                };
             };
+
+            std.debug.print("file_name={s} suffix={s}", .{ result.file_name, result.suffix });
+            var suffix: ?[]const u8 = result.suffix;
 
             if (if (suffix) |suffix_|
                 (!std.mem.eql(u8, suffix_, ".c") or // good, old-fashioned C
@@ -221,7 +230,7 @@ pub fn create_file_names(allocator: Allocator) !void {
                 const stderr = std.io.getStdErr().writer();
                 try stderr.print(
                     "{s}: suffix of output file name {?s} not recognized, no -d file generated.\n",
-                    .{ __progname, output_file_name },
+                    .{ progname, output_file_name },
                 );
 
                 dflag = false;
@@ -297,8 +306,9 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
     var argv: [][:0]const u8 = try std.process.argsAlloc(allocator);
-
     try getargs(argv);
+    std.process.argsFree(allocator, argv);
+
     try open_files(allocator);
     // reader();
     // lr0();
