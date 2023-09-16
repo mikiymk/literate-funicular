@@ -42,8 +42,7 @@ unsigned *ruleset;
 static unsigned *first_derives;
 static unsigned *EFF;
 
-
-#ifdef	DEBUG
+#ifdef DEBUG
 
 static void
 print_closure(int n)
@@ -64,14 +63,17 @@ print_EFF(void)
 
 	printf("\n\nEpsilon Free Firsts\n");
 
-	for (i = start_symbol; i < nsyms; i++) {
+	for (i = start_symbol; i < nsyms; i++)
+	{
 		printf("\n%s", symbol_name[i]);
 		rowp = EFF + ((i - start_symbol) * WORDSIZE(nvars));
 		word = *rowp++;
 
 		k = BITS_PER_WORD;
-		for (j = 0; j < nvars; k++, j++) {
-			if (k >= BITS_PER_WORD) {
+		for (j = 0; j < nvars; k++, j++)
+		{
+			if (k >= BITS_PER_WORD)
+			{
 				word = *rowp++;
 				k = 0;
 			}
@@ -91,12 +93,15 @@ print_first_derives(void)
 
 	printf("\n\n\nFirst Derives\n");
 
-	for (i = start_symbol; i < nsyms; i++) {
+	for (i = start_symbol; i < nsyms; i++)
+	{
 		printf("\n%s derives\n", symbol_name[i]);
 		rp = first_derives + i * WORDSIZE(nrules);
 		k = BITS_PER_WORD;
-		for (j = 0; j <= nrules; k++, j++) {
-			if (k >= BITS_PER_WORD) {
+		for (j = 0; j <= nrules; k++, j++)
+		{
+			if (k >= BITS_PER_WORD)
+			{
 				cword = *rp++;
 				k = 0;
 			}
@@ -111,7 +116,6 @@ print_first_derives(void)
 
 #endif
 
-
 static void
 set_EFF(void)
 {
@@ -123,11 +127,14 @@ set_EFF(void)
 	EFF = NEW2(nvars * rowsize, unsigned);
 
 	row = EFF;
-	for (i = start_symbol; i < nsyms; i++) {
+	for (i = start_symbol; i < nsyms; i++)
+	{
 		sp = derives[i];
-		for (rule = *sp; rule > 0; rule = *++sp) {
+		for (rule = *sp; rule > 0; rule = *++sp)
+		{
 			symbol = ritem[rrhs[rule]];
-			if (ISVAR(symbol)) {
+			if (ISVAR(symbol))
+			{
 				symbol -= start_symbol;
 				SETBIT(row, symbol);
 			}
@@ -137,14 +144,12 @@ set_EFF(void)
 
 	reflexive_transitive_closure(EFF, nvars);
 
-#ifdef	DEBUG
+#ifdef DEBUG
 	print_EFF();
 #endif
 }
 
-
-void
-set_first_derives(void)
+void set_first_derives(void)
 {
 	unsigned int *rrow, *vrow;
 	unsigned int k, cword = 0;
@@ -158,18 +163,23 @@ set_first_derives(void)
 	set_EFF();
 
 	rrow = first_derives + ntokens * rulesetsize;
-	for (i = start_symbol; i < nsyms; i++) {
+	for (i = start_symbol; i < nsyms; i++)
+	{
 		vrow = EFF + ((i - ntokens) * varsetsize);
 		k = BITS_PER_WORD;
-		for (j = start_symbol; j < nsyms; k++, j++) {
-			if (k >= BITS_PER_WORD) {
+		for (j = start_symbol; j < nsyms; k++, j++)
+		{
+			if (k >= BITS_PER_WORD)
+			{
 				cword = *vrow++;
 				k = 0;
 			}
 
-			if (cword & (1 << k)) {
+			if (cword & (1 << k))
+			{
 				rp = derives[j];
-				while ((rule = *rp++) >= 0) {
+				while ((rule = *rp++) >= 0)
+				{
 					SETBIT(rrow, rule);
 				}
 			}
@@ -177,16 +187,14 @@ set_first_derives(void)
 		rrow += rulesetsize;
 	}
 
-#ifdef	DEBUG
+#ifdef DEBUG
 	print_first_derives();
 #endif
 
 	free(EFF);
 }
 
-
-void
-closure(short *nucleus, int n)
+void closure(short *nucleus, int n)
 {
 	unsigned int i, word;
 	short *csp, *csend;
@@ -199,9 +207,11 @@ closure(short *nucleus, int n)
 	memset(ruleset, 0, rulesetsize * sizeof(*ruleset));
 
 	csend = nucleus + n;
-	for (csp = nucleus; csp < csend; ++csp) {
+	for (csp = nucleus; csp < csend; ++csp)
+	{
 		symbol = ritem[*csp];
-		if (ISVAR(symbol)) {
+		if (ISVAR(symbol))
+		{
 			dsp = first_derives + symbol * rulesetsize;
 			rsp = ruleset;
 			while (rsp < rsend)
@@ -212,12 +222,16 @@ closure(short *nucleus, int n)
 	ruleno = 0;
 	itemsetend = itemset;
 	csp = nucleus;
-	for (rsp = ruleset; rsp < rsend; ++rsp) {
+	for (rsp = ruleset; rsp < rsend; ++rsp)
+	{
 		word = *rsp;
-		if (word) {
-			for (i = 0; i < BITS_PER_WORD; ++i) {
-				if (word & (1 << i)) {
-					itemno = rrhs[ruleno+i];
+		if (word)
+		{
+			for (i = 0; i < BITS_PER_WORD; ++i)
+			{
+				if (word & (1 << i))
+				{
+					itemno = rrhs[ruleno + i];
 					while (csp < csend && *csp < itemno)
 						*itemsetend++ = *csp++;
 					*itemsetend++ = itemno;
@@ -232,15 +246,12 @@ closure(short *nucleus, int n)
 	while (csp < csend)
 		*itemsetend++ = *csp++;
 
-#ifdef	DEBUG
-  print_closure(n);
+#ifdef DEBUG
+	print_closure(n);
 #endif
 }
 
-
-
-void
-finalize_closure(void)
+void finalize_closure(void)
 {
 	free(itemset);
 	free(ruleset);

@@ -37,7 +37,7 @@
 #include <fcntl.h>
 #include "paths.h"
 #include <stdlib.h>
-#include <unistd.h>
+// #include <unistd.h>
 #include "defs.h"
 
 #ifndef HAVE_PROGNAME
@@ -65,17 +65,17 @@ char *output_file_name;
 char *verbose_file_name;
 
 FILE *action_file;	/* a temp file, used to save actions associated    */
-			/* with rules until the parser is written	   */
+					/* with rules until the parser is written	   */
 FILE *code_file;	/* y.code.c (used when the -r option is specified) */
-FILE *defines_file;	/* y.tab.h					   */
+FILE *defines_file; /* y.tab.h					   */
 FILE *input_file;	/* the input file				   */
 FILE *output_file;	/* y.tab.c					   */
 FILE *text_file;	/* a temp file, used to save text until all	   */
-			/* symbols have been defined			   */
+					/* symbols have been defined			   */
 FILE *union_file;	/* a temp file, used to save the union		   */
-			/* definition until all symbol have been	   */
-			/* defined					   */
-FILE *verbose_file;	/* y.output					   */
+					/* definition until all symbol have been	   */
+					/* defined					   */
+FILE *verbose_file; /* y.output					   */
 
 int nitems;
 int nrules;
@@ -102,21 +102,20 @@ void getargs(int, char *[]);
 void create_file_names(void);
 void open_files(void);
 
-void
-usage(void)
+void usage(void)
 {
 	fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", __progname);
 	exit(1);
 }
 
-
-void
-getargs(int argc, char *argv[])
+void getargs(int argc, char *argv[])
 {
 	int ch;
 
-	while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1) {
-		switch (ch) {
+	while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1)
+	{
+		switch (ch)
+		{
 		case 'b':
 			file_prefix = optarg;
 			break;
@@ -165,14 +164,14 @@ getargs(int argc, char *argv[])
 		input_file_name = *argv;
 }
 
-
 void *
 allocate(size_t n)
 {
 	void *v;
 
 	v = NULL;
-	if (n) {
+	if (n)
+	{
 		v = calloc(1, n);
 		if (!v)
 			no_space();
@@ -180,22 +179,25 @@ allocate(size_t n)
 	return (v);
 }
 
-void
-create_file_names(void)
+void create_file_names(void)
 {
-	if (output_file_name == NULL) {
-		if (asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX)
-		    == -1)
+	if (output_file_name == NULL)
+	{
+		if (asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX) == -1)
 			no_space();
 	}
-	if (rflag) {
+	if (rflag)
+	{
 		if (asprintf(&code_file_name, "%s%s", file_prefix, CODE_SUFFIX) == -1)
 			no_space();
-	} else
+	}
+	else
 		code_file_name = output_file_name;
 
-	if (dflag) {
-		if (explicit_file_name) {
+	if (dflag)
+	{
+		if (explicit_file_name)
+		{
 			char *suffix;
 
 			defines_file_name = strdup(output_file_name);
@@ -204,36 +206,41 @@ create_file_names(void)
 
 			/* does the output_file_name have a known suffix */
 			if ((suffix = strrchr(output_file_name, '.')) != 0 &&
-			    (!strcmp(suffix, ".c") ||	/* good, old-fashioned C */
-			     !strcmp(suffix, ".C") ||	/* C++, or C on Windows */
-			     !strcmp(suffix, ".cc") ||	/* C++ */
-			     !strcmp(suffix, ".cxx") ||	/* C++ */
-			     !strcmp(suffix, ".cpp"))) {/* C++ (Windows) */
+				(!strcmp(suffix, ".c") ||	/* good, old-fashioned C */
+				 !strcmp(suffix, ".C") ||	/* C++, or C on Windows */
+				 !strcmp(suffix, ".cc") ||	/* C++ */
+				 !strcmp(suffix, ".cxx") || /* C++ */
+				 !strcmp(suffix, ".cpp")))
+			{ /* C++ (Windows) */
 				strncpy(defines_file_name, output_file_name,
-					suffix - output_file_name + 1);
+						suffix - output_file_name + 1);
 				defines_file_name[suffix - output_file_name + 1] = 'h';
 				defines_file_name[suffix - output_file_name + 2] = '\0';
-			} else {
+			}
+			else
+			{
 				fprintf(stderr, "%s: suffix of output file name %s"
-				 " not recognized, no -d file generated.\n",
-					__progname, output_file_name);
+								" not recognized, no -d file generated.\n",
+						__progname, output_file_name);
 				dflag = 0;
 				free(defines_file_name);
 				defines_file_name = 0;
 			}
-		} else {
+		}
+		else
+		{
 			if (asprintf(&defines_file_name, "%s%s", file_prefix,
-				     DEFINES_SUFFIX) == -1)
+						 DEFINES_SUFFIX) == -1)
 				no_space();
 		}
 	}
-	if (vflag) {
+	if (vflag)
+	{
 		if (asprintf(&verbose_file_name, "%s%s", file_prefix,
-			     VERBOSE_SUFFIX) == -1)
+					 VERBOSE_SUFFIX) == -1)
 			no_space();
 	}
 }
-
 
 FILE *
 create_temp(void)
@@ -246,12 +253,12 @@ create_temp(void)
 	return f;
 }
 
-void
-open_files(void)
+void open_files(void)
 {
 	create_file_names();
 
-	if (input_file == NULL) {
+	if (input_file == NULL)
+	{
 		input_file = fopen(input_file_name, "r");
 		if (input_file == NULL)
 			open_error(input_file_name);
@@ -260,12 +267,14 @@ open_files(void)
 
 	text_file = create_temp();
 
-	if (vflag) {
+	if (vflag)
+	{
 		verbose_file = fopen(verbose_file_name, "w");
 		if (verbose_file == NULL)
 			open_error(verbose_file_name);
 	}
-	if (dflag) {
+	if (dflag)
+	{
 		defines_file = fopen(defines_file_name, "w");
 		if (defines_file == NULL)
 			open_write_error(defines_file_name);
@@ -275,17 +284,17 @@ open_files(void)
 	if (output_file == NULL)
 		open_error(output_file_name);
 
-	if (rflag) {
+	if (rflag)
+	{
 		code_file = fopen(code_file_name, "w");
 		if (code_file == NULL)
 			open_error(code_file_name);
-	} else
+	}
+	else
 		code_file = output_file;
 }
 
-
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 #ifndef HAVE_PROGNAME
 	__progname = argv[0];

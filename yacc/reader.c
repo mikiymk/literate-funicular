@@ -106,11 +106,11 @@ void print_grammar(void);
 
 char line_format[] = "#line %d \"%s\"\n";
 
-void
-cachec(int c)
+void cachec(int c)
 {
 	assert(cinc >= 0);
-	if (cinc >= cache_size) {
+	if (cinc >= cache_size)
+	{
 		cache_size += 256;
 		cache = realloc(cache, cache_size);
 		if (cache == NULL)
@@ -120,15 +120,15 @@ cachec(int c)
 	++cinc;
 }
 
-
-void
-get_line(void)
+void get_line(void)
 {
 	FILE *f = input_file;
 	int c, i;
 
-	if (saw_eof || (c = getc(f)) == EOF) {
-		if (line) {
+	if (saw_eof || (c = getc(f)) == EOF)
+	{
+		if (line)
+		{
 			free(line);
 			line = 0;
 		}
@@ -136,7 +136,8 @@ get_line(void)
 		saw_eof = 1;
 		return;
 	}
-	if (line == NULL || linesize != (LINESIZE + 1)) {
+	if (line == NULL || linesize != (LINESIZE + 1))
+	{
 		free(line);
 		linesize = LINESIZE + 1;
 		line = malloc(linesize);
@@ -145,20 +146,24 @@ get_line(void)
 	}
 	i = 0;
 	++lineno;
-	for (;;) {
+	for (;;)
+	{
 		line[i] = c;
-		if (c == '\n') {
+		if (c == '\n')
+		{
 			cptr = line;
 			return;
 		}
-		if (++i >= linesize) {
+		if (++i >= linesize)
+		{
 			linesize += LINESIZE;
 			line = realloc(line, linesize);
 			if (line == NULL)
 				no_space();
 		}
 		c = getc(f);
-		if (c == EOF) {
+		if (c == EOF)
+		{
 			line[i] = '\n';
 			saw_eof = 1;
 			cptr = line;
@@ -166,7 +171,6 @@ get_line(void)
 		}
 	}
 }
-
 
 char *
 dup_line(void)
@@ -189,9 +193,7 @@ dup_line(void)
 	return (p);
 }
 
-
-void
-skip_comment(void)
+void skip_comment(void)
 {
 	char *s;
 	int st_lineno = lineno;
@@ -199,36 +201,41 @@ skip_comment(void)
 	char *st_cptr = st_line + (cptr - line);
 
 	s = cptr + 2;
-	for (;;) {
-		if (*s == '*' && s[1] == '/') {
+	for (;;)
+	{
+		if (*s == '*' && s[1] == '/')
+		{
 			cptr = s + 2;
 			free(st_line);
 			return;
 		}
-		if (*s == '\n') {
+		if (*s == '\n')
+		{
 			get_line();
 			if (line == NULL)
 				unterminated_comment(st_lineno, st_line, st_cptr);
 			s = cptr;
-		} else
+		}
+		else
 			++s;
 	}
 }
 
-
-int
-nextc(void)
+int nextc(void)
 {
 	char *s;
 
-	if (line == NULL) {
+	if (line == NULL)
+	{
 		get_line();
 		if (line == NULL)
 			return (EOF);
 	}
 	s = cptr;
-	for (;;) {
-		switch (*s) {
+	for (;;)
+	{
+		switch (*s)
+		{
 		case '\n':
 			get_line();
 			if (line == NULL)
@@ -251,12 +258,15 @@ nextc(void)
 			return ('%');
 
 		case '/':
-			if (s[1] == '*') {
+			if (s[1] == '*')
+			{
 				cptr = s;
 				skip_comment();
 				s = cptr;
 				break;
-			} else if (s[1] == '/') {
+			}
+			else if (s[1] == '/')
+			{
 				get_line();
 				if (line == NULL)
 					return (EOF);
@@ -267,31 +277,33 @@ nextc(void)
 
 		default:
 			cptr = s;
-			return ((unsigned char) *s);
+			return ((unsigned char)*s);
 		}
 	}
 }
 
-
-int
-keyword(void)
+int keyword(void)
 {
 	int c;
 	char *t_cptr = cptr;
 
-	c = (unsigned char) *++cptr;
-	if (isalpha(c)) {
+	c = (unsigned char)*++cptr;
+	if (isalpha(c))
+	{
 		cinc = 0;
-		for (;;) {
-			if (isalpha(c)) {
+		for (;;)
+		{
+			if (isalpha(c))
+			{
 				if (isupper(c))
 					c = tolower(c);
 				cachec(c);
-			} else if (isdigit(c) || c == '_' || c == '.' || c == '$')
+			}
+			else if (isdigit(c) || c == '_' || c == '.' || c == '$')
 				cachec(c);
 			else
 				break;
-			c = (unsigned char) *++cptr;
+			c = (unsigned char)*++cptr;
 		}
 		cachec(NUL);
 
@@ -313,7 +325,9 @@ keyword(void)
 			return (IDENT);
 		if (strcmp(cache, "expect") == 0)
 			return (EXPECT);
-	} else {
+	}
+	else
+	{
 		++cptr;
 		if (c == '{')
 			return (TEXT);
@@ -333,9 +347,7 @@ keyword(void)
 	return (0);
 }
 
-
-void
-copy_ident(void)
+void copy_ident(void)
 {
 	int c;
 	FILE *f = output_file;
@@ -347,14 +359,17 @@ copy_ident(void)
 		syntax_error(lineno, line, cptr);
 	++outline;
 	fprintf(f, "#ident \"");
-	for (;;) {
-		c = (unsigned char) *++cptr;
-		if (c == '\n') {
+	for (;;)
+	{
+		c = (unsigned char)*++cptr;
+		if (c == '\n')
+		{
 			fprintf(f, "\"\n");
 			return;
 		}
 		putc(c, f);
-		if (c == '"') {
+		if (c == '"')
+		{
 			putc('\n', f);
 			++cptr;
 			return;
@@ -362,9 +377,7 @@ copy_ident(void)
 	}
 }
 
-
-void
-copy_text(void)
+void copy_text(void)
 {
 	int c;
 	int quote;
@@ -374,7 +387,8 @@ copy_text(void)
 	char *t_line = dup_line();
 	char *t_cptr = t_line + (cptr - line - 2);
 
-	if (*cptr == '\n') {
+	if (*cptr == '\n')
+	{
 		get_line();
 		if (line == NULL)
 			unterminated_text(t_lineno, t_line, t_cptr);
@@ -383,10 +397,11 @@ copy_text(void)
 		fprintf(f, line_format, lineno, input_file_name);
 
 loop:
-	c = (unsigned char) *cptr++;
-	switch (c) {
+	c = (unsigned char)*cptr++;
+	switch (c)
+	{
 	case '\n':
-next_line:
+	next_line:
 		putc('\n', f);
 		need_newline = 0;
 		get_line();
@@ -395,27 +410,32 @@ next_line:
 		unterminated_text(t_lineno, t_line, t_cptr);
 
 	case '\'':
-	case '"': {
+	case '"':
+	{
 		int s_lineno = lineno;
 		char *s_line = dup_line();
 		char *s_cptr = s_line + (cptr - line - 1);
 
 		quote = c;
 		putc(c, f);
-		for (;;) {
-			c = (unsigned char) *cptr++;
+		for (;;)
+		{
+			c = (unsigned char)*cptr++;
 			putc(c, f);
-			if (c == quote) {
+			if (c == quote)
+			{
 				need_newline = 1;
 				free(s_line);
 				goto loop;
 			}
 			if (c == '\n')
 				unterminated_string(s_lineno, s_line, s_cptr);
-			if (c == '\\') {
-				c = (unsigned char) *cptr++;
+			if (c == '\\')
+			{
+				c = (unsigned char)*cptr++;
 				putc(c, f);
-				if (c == '\n') {
+				if (c == '\n')
+				{
 					get_line();
 					if (line == NULL)
 						unterminated_string(s_lineno, s_line, s_cptr);
@@ -427,10 +447,12 @@ next_line:
 	case '/':
 		putc(c, f);
 		need_newline = 1;
-		c = (unsigned char) *cptr;
-		if (c == '/') {
+		c = (unsigned char)*cptr;
+		if (c == '/')
+		{
 			putc('*', f);
-			while ((c = (unsigned char) *++cptr) != '\n') {
+			while ((c = (unsigned char)*++cptr) != '\n')
+			{
 				if (c == '*' && cptr[1] == '/')
 					fprintf(f, "* ");
 				else
@@ -439,23 +461,27 @@ next_line:
 			fprintf(f, "*/");
 			goto next_line;
 		}
-		if (c == '*') {
+		if (c == '*')
+		{
 			int c_lineno = lineno;
 			char *c_line = dup_line();
 			char *c_cptr = c_line + (cptr - line - 1);
 
 			putc('*', f);
 			++cptr;
-			for (;;) {
-				c = (unsigned char) *cptr++;
+			for (;;)
+			{
+				c = (unsigned char)*cptr++;
 				putc(c, f);
-				if (c == '*' && *cptr == '/') {
+				if (c == '*' && *cptr == '/')
+				{
 					putc('/', f);
 					++cptr;
 					free(c_line);
 					goto loop;
 				}
-				if (c == '\n') {
+				if (c == '\n')
+				{
 					get_line();
 					if (line == NULL)
 						unterminated_comment(c_lineno, c_line, c_cptr);
@@ -467,7 +493,8 @@ next_line:
 
 	case '%':
 	case '\\':
-		if (*cptr == '}') {
+		if (*cptr == '}')
+		{
 			if (need_newline)
 				putc('\n', f);
 			++cptr;
@@ -483,9 +510,7 @@ next_line:
 	}
 }
 
-
-void
-copy_union(void)
+void copy_union(void)
 {
 	int c, quote, depth;
 	int u_lineno = lineno;
@@ -502,7 +527,8 @@ copy_union(void)
 	fprintf(text_file, "#ifndef YYSTYPE_DEFINED\n");
 	fprintf(text_file, "#define YYSTYPE_DEFINED\n");
 	fprintf(text_file, "typedef union");
-	if (dflag) {
+	if (dflag)
+	{
 		fprintf(union_file, "#ifndef YYSTYPE_DEFINED\n");
 		fprintf(union_file, "#define YYSTYPE_DEFINED\n");
 		fprintf(union_file, "typedef union");
@@ -510,13 +536,14 @@ copy_union(void)
 
 	depth = 0;
 loop:
-	c = (unsigned char) *cptr++;
+	c = (unsigned char)*cptr++;
 	putc(c, text_file);
 	if (dflag)
 		putc(c, union_file);
-	switch (c) {
+	switch (c)
+	{
 	case '\n':
-next_line:
+	next_line:
 		get_line();
 		if (line == NULL)
 			unterminated_union(u_lineno, u_line, u_cptr);
@@ -527,7 +554,8 @@ next_line:
 		goto loop;
 
 	case '}':
-		if (--depth == 0) {
+		if (--depth == 0)
+		{
 			fprintf(text_file, " YYSTYPE;\n");
 			fprintf(text_file, "#endif /* YYSTYPE_DEFINED */\n");
 			free(u_line);
@@ -536,50 +564,60 @@ next_line:
 		goto loop;
 
 	case '\'':
-	case '"': {
+	case '"':
+	{
 		int s_lineno = lineno;
 		char *s_line = dup_line();
 		char *s_cptr = s_line + (cptr - line - 1);
 
 		quote = c;
-		for (;;) {
-			c = (unsigned char) *cptr++;
+		for (;;)
+		{
+			c = (unsigned char)*cptr++;
 			putc(c, text_file);
 			if (dflag)
 				putc(c, union_file);
-			if (c == quote) {
+			if (c == quote)
+			{
 				free(s_line);
 				goto loop;
 			}
 			if (c == '\n')
 				unterminated_string(s_lineno, s_line, s_cptr);
-			if (c == '\\') {
-				c = (unsigned char) *cptr++;
+			if (c == '\\')
+			{
+				c = (unsigned char)*cptr++;
 				putc(c, text_file);
 				if (dflag)
 					putc(c, union_file);
-				if (c == '\n') {
+				if (c == '\n')
+				{
 					get_line();
 					if (line == NULL)
 						unterminated_string(s_lineno,
-						    s_line, s_cptr);
+											s_line, s_cptr);
 				}
 			}
 		}
 	}
 
 	case '/':
-		c = (unsigned char) *cptr;
-		if (c == '/') {
+		c = (unsigned char)*cptr;
+		if (c == '/')
+		{
 			putc('*', text_file);
 			if (dflag)
 				putc('*', union_file);
-			while ((c = (unsigned char) *++cptr) != '\n') {
-				if (c == '*' && cptr[1] == '/') {
+			while ((c = (unsigned char)*++cptr) != '\n')
+			{
+				if (c == '*' && cptr[1] == '/')
+				{
 					fprintf(text_file, "* ");
 					if (dflag)
 						fprintf(union_file, "* ");
-				} else {
+				}
+				else
+				{
 					putc(c, text_file);
 					if (dflag)
 						putc(c, union_file);
@@ -590,7 +628,8 @@ next_line:
 				fprintf(union_file, "*/\n");
 			goto next_line;
 		}
-		if (c == '*') {
+		if (c == '*')
+		{
 			int c_lineno = lineno;
 			char *c_line = dup_line();
 			char *c_cptr = c_line + (cptr - line - 1);
@@ -599,12 +638,14 @@ next_line:
 			if (dflag)
 				putc('*', union_file);
 			++cptr;
-			for (;;) {
-				c = (unsigned char) *cptr++;
+			for (;;)
+			{
+				c = (unsigned char)*cptr++;
 				putc(c, text_file);
 				if (dflag)
 					putc(c, union_file);
-				if (c == '*' && *cptr == '/') {
+				if (c == '*' && *cptr == '/')
+				{
 					putc('/', text_file);
 					if (dflag)
 						putc('/', union_file);
@@ -612,11 +653,12 @@ next_line:
 					free(c_line);
 					goto loop;
 				}
-				if (c == '\n') {
+				if (c == '\n')
+				{
 					get_line();
 					if (line == NULL)
 						unterminated_comment(c_lineno,
-						    c_line, c_cptr);
+											 c_line, c_cptr);
 				}
 			}
 		}
@@ -626,7 +668,6 @@ next_line:
 		goto loop;
 	}
 }
-
 
 bucket *
 get_literal(void)
@@ -638,25 +679,28 @@ get_literal(void)
 	char *s_line = dup_line();
 	char *s_cptr = s_line + (cptr - line);
 
-	quote = (unsigned char) *cptr++;
+	quote = (unsigned char)*cptr++;
 	cinc = 0;
-	for (;;) {
-		c = (unsigned char) *cptr++;
+	for (;;)
+	{
+		c = (unsigned char)*cptr++;
 		if (c == quote)
 			break;
 		if (c == '\n')
 			unterminated_string(s_lineno, s_line, s_cptr);
-		if (c == '\\') {
+		if (c == '\\')
+		{
 			char *c_cptr = cptr - 1;
 			unsigned long ulval;
 
-			c = (unsigned char) *cptr++;
-			switch (c) {
+			c = (unsigned char)*cptr++;
+			switch (c)
+			{
 			case '\n':
 				get_line();
 				if (line == NULL)
 					unterminated_string(s_lineno, s_line,
-					    s_cptr);
+										s_cptr);
 				continue;
 
 			case '0':
@@ -670,7 +714,7 @@ get_literal(void)
 				ulval = strtoul(cptr - 1, &s, 8);
 				if (s == cptr - 1 || ulval > MAXCHAR)
 					illegal_character(c_cptr);
-				c = (int) ulval;
+				c = (int)ulval;
 				cptr = s;
 				break;
 
@@ -678,7 +722,7 @@ get_literal(void)
 				ulval = strtoul(cptr, &s, 16);
 				if (s == cptr || ulval > MAXCHAR)
 					illegal_character(c_cptr);
-				c = (int) ulval;
+				c = (int)ulval;
 				cptr = s;
 				break;
 
@@ -722,16 +766,21 @@ get_literal(void)
 	else
 		cachec('"');
 
-	for (i = 0; i < n; ++i) {
-		c = ((unsigned char *) s)[i];
-		if (c == '\\' || c == cache[0]) {
+	for (i = 0; i < n; ++i)
+	{
+		c = ((unsigned char *)s)[i];
+		if (c == '\\' || c == cache[0])
+		{
 			cachec('\\');
 			cachec(c);
-		} else if (isprint(c))
+		}
+		else if (isprint(c))
 			cachec(c);
-		else {
+		else
+		{
 			cachec('\\');
-			switch (c) {
+			switch (c)
+			{
 			case 7:
 				cachec('a');
 				break;
@@ -771,26 +820,25 @@ get_literal(void)
 	bp = lookup(cache);
 	bp->class = TERM;
 	if (n == 1 && bp->value == UNDEFINED)
-		bp->value = *(unsigned char *) s;
+		bp->value = *(unsigned char *)s;
 	free(s);
 
 	return (bp);
 }
 
-
-int
-is_reserved(char *name)
+int is_reserved(char *name)
 {
 	char *s;
 
 	if (strcmp(name, ".") == 0 ||
-	    strcmp(name, "$accept") == 0 ||
-	    strcmp(name, "$end") == 0)
+		strcmp(name, "$accept") == 0 ||
+		strcmp(name, "$end") == 0)
 		return (1);
 
-	if (name[0] == '$' && name[1] == '$' && isdigit((unsigned char) name[2])) {
+	if (name[0] == '$' && name[1] == '$' && isdigit((unsigned char)name[2]))
+	{
 		s = name + 3;
-		while (isdigit((unsigned char) *s))
+		while (isdigit((unsigned char)*s))
 			++s;
 		if (*s == NUL)
 			return (1);
@@ -798,14 +846,13 @@ is_reserved(char *name)
 	return (0);
 }
 
-
 bucket *
 get_name(void)
 {
 	int c;
 
 	cinc = 0;
-	for (c = (unsigned char) *cptr; IS_IDENT(c); c = (unsigned char) *++cptr)
+	for (c = (unsigned char)*cptr; IS_IDENT(c); c = (unsigned char)*++cptr)
 		cachec(c);
 	cachec(NUL);
 
@@ -815,9 +862,7 @@ get_name(void)
 	return (lookup(cache));
 }
 
-
-int
-get_number(void)
+int get_number(void)
 {
 	unsigned long ul;
 	char *p;
@@ -828,7 +873,6 @@ get_number(void)
 	cptr = p;
 	return (ul);
 }
-
 
 char *
 get_tag(void)
@@ -847,9 +891,10 @@ get_tag(void)
 		illegal_tag(t_lineno, t_line, t_cptr);
 
 	cinc = 0;
-	do {
+	do
+	{
 		cachec(c);
-		c = (unsigned char) *++cptr;
+		c = (unsigned char)*++cptr;
 	} while (IS_IDENT(c));
 	cachec(NUL);
 
@@ -861,12 +906,14 @@ get_tag(void)
 	free(t_line);
 	++cptr;
 
-	for (i = 0; i < ntags; ++i) {
+	for (i = 0; i < ntags; ++i)
+	{
 		if (strcmp(cache, tag_table[i]) == 0)
 			return (tag_table[i]);
 	}
 
-	if (ntags >= tagmax) {
+	if (ntags >= tagmax)
+	{
 		tagmax += 16;
 		tag_table = reallocarray(tag_table, tagmax, sizeof(char *));
 		if (tag_table == NULL)
@@ -881,9 +928,7 @@ get_tag(void)
 	return (s);
 }
 
-
-void
-declare_tokens(int assoc)
+void declare_tokens(int assoc)
 {
 	int c;
 	bucket *bp;
@@ -896,13 +941,15 @@ declare_tokens(int assoc)
 	c = nextc();
 	if (c == EOF)
 		unexpected_EOF();
-	if (c == '<') {
+	if (c == '<')
+	{
 		tag = get_tag();
 		c = nextc();
 		if (c == EOF)
 			unexpected_EOF();
 	}
-	for (;;) {
+	for (;;)
+	{
 		if (isalpha(c) || c == '_' || c == '.' || c == '$')
 			bp = get_name();
 		else if (c == '\'' || c == '"')
@@ -914,12 +961,14 @@ declare_tokens(int assoc)
 			tokenized_start(bp->name);
 		bp->class = TERM;
 
-		if (tag) {
+		if (tag)
+		{
 			if (bp->tag && tag != bp->tag)
 				retyped_warning(bp->name);
 			bp->tag = tag;
 		}
-		if (assoc != TOKEN) {
+		if (assoc != TOKEN)
+		{
 			if (bp->prec && prec != bp->prec)
 				reprec_warning(bp->name);
 			bp->assoc = assoc;
@@ -928,7 +977,8 @@ declare_tokens(int assoc)
 		c = nextc();
 		if (c == EOF)
 			unexpected_EOF();
-		if (isdigit(c)) {
+		if (isdigit(c))
+		{
 			value = get_number();
 			if (bp->value != UNDEFINED && value != bp->value)
 				revalued_warning(bp->name);
@@ -939,7 +989,6 @@ declare_tokens(int assoc)
 		}
 	}
 }
-
 
 /*
  * %expect requires special handling as it really isn't part of the yacc
@@ -954,35 +1003,38 @@ declare_expect(int assoc)
 		++prec;
 
 	/*
-         * Stay away from nextc - doesn't detect EOL and will read to EOF.
-         */
-	c = (unsigned char) *++cptr;
+	 * Stay away from nextc - doesn't detect EOL and will read to EOF.
+	 */
+	c = (unsigned char)*++cptr;
 	if (c == EOF)
 		unexpected_EOF();
 
-	for (;;) {
-		if (isdigit(c)) {
+	for (;;)
+	{
+		if (isdigit(c))
+		{
 			SRexpect = get_number();
 			break;
 		}
 		/*
-	         * Looking for number before EOL.
-	         * Spaces, tabs, and numbers are ok.
-	         * Words, punc., etc. are syntax errors.
-	         */
-		else if (c == '\n' || isalpha(c) || !isspace(c)) {
+		 * Looking for number before EOL.
+		 * Spaces, tabs, and numbers are ok.
+		 * Words, punc., etc. are syntax errors.
+		 */
+		else if (c == '\n' || isalpha(c) || !isspace(c))
+		{
 			syntax_error(lineno, line, cptr);
-		} else {
-			c = (unsigned char) *++cptr;
+		}
+		else
+		{
+			c = (unsigned char)*++cptr;
 			if (c == EOF)
 				unexpected_EOF();
 		}
 	}
 }
 
-
-void
-declare_types(void)
+void declare_types(void)
 {
 	int c;
 	bucket *bp;
@@ -995,7 +1047,8 @@ declare_types(void)
 		syntax_error(lineno, line, cptr);
 	tag = get_tag();
 
-	for (;;) {
+	for (;;)
+	{
 		c = nextc();
 		if (isalpha(c) || c == '_' || c == '.' || c == '$')
 			bp = get_name();
@@ -1010,9 +1063,7 @@ declare_types(void)
 	}
 }
 
-
-void
-declare_start(void)
+void declare_start(void)
 {
 	int c;
 	bucket *bp;
@@ -1030,9 +1081,7 @@ declare_start(void)
 	goal = bp;
 }
 
-
-void
-read_declarations(void)
+void read_declarations(void)
 {
 	int c, k;
 
@@ -1041,13 +1090,15 @@ read_declarations(void)
 	if (cache == NULL)
 		no_space();
 
-	for (;;) {
+	for (;;)
+	{
 		c = nextc();
 		if (c == EOF)
 			unexpected_EOF();
 		if (c != '%')
 			syntax_error(lineno, line, cptr);
-		switch (k = keyword()) {
+		switch (k = keyword())
+		{
 		case MARK:
 			return;
 
@@ -1085,9 +1136,7 @@ read_declarations(void)
 	}
 }
 
-
-void
-initialize_grammar(void)
+void initialize_grammar(void)
 {
 	nitems = 4;
 	maxitems = 300;
@@ -1117,9 +1166,7 @@ initialize_grammar(void)
 	rassoc[2] = TOKEN;
 }
 
-
-void
-expand_items(void)
+void expand_items(void)
 {
 	int olditems = maxitems;
 
@@ -1130,9 +1177,7 @@ expand_items(void)
 	memset(pitem + olditems, 0, (maxitems - olditems) * sizeof(bucket *));
 }
 
-
-void
-expand_rules(void)
+void expand_rules(void)
 {
 	maxrules += 100;
 	plhs = reallocarray(plhs, maxrules, sizeof(bucket *));
@@ -1146,21 +1191,21 @@ expand_rules(void)
 		no_space();
 }
 
-
-void
-advance_to_start(void)
+void advance_to_start(void)
 {
 	int c;
 	bucket *bp;
 	char *s_cptr;
 	int s_lineno;
 
-	for (;;) {
+	for (;;)
+	{
 		c = nextc();
 		if (c != '%')
 			break;
 		s_cptr = cptr;
-		switch (keyword()) {
+		switch (keyword())
+		{
 		case MARK:
 			no_grammar();
 
@@ -1181,7 +1226,8 @@ advance_to_start(void)
 	if (!isalpha(c) && c != '_' && c != '.' && c != '_')
 		syntax_error(lineno, line, cptr);
 	bp = get_name();
-	if (goal == NULL) {
+	if (goal == NULL)
+	{
 		if (bp->class == TERM)
 			terminal_start(bp->name);
 		goal = bp;
@@ -1196,9 +1242,7 @@ advance_to_start(void)
 	++cptr;
 }
 
-
-void
-start_rule(bucket * bp, int s_lineno)
+void start_rule(bucket *bp, int s_lineno)
 {
 	if (bp->class == TERM)
 		terminal_lhs(s_lineno);
@@ -1210,17 +1254,16 @@ start_rule(bucket * bp, int s_lineno)
 	rassoc[nrules] = TOKEN;
 }
 
-
-void
-end_rule(void)
+void end_rule(void)
 {
 	int i;
 
-	if (!last_was_action && plhs[nrules]->tag) {
+	if (!last_was_action && plhs[nrules]->tag)
+	{
 		for (i = nitems - 1; pitem[i]; --i)
 			continue;
 		if (i == maxitems - 1 || pitem[i + 1] == 0 ||
-		    pitem[i + 1]->tag != plhs[nrules]->tag)
+			pitem[i + 1]->tag != plhs[nrules]->tag)
 			default_action_warning();
 	}
 	last_was_action = 0;
@@ -1231,9 +1274,7 @@ end_rule(void)
 	++nrules;
 }
 
-
-void
-insert_empty_rule(void)
+void insert_empty_rule(void)
 {
 	bucket *bp, **bpp;
 
@@ -1262,22 +1303,21 @@ insert_empty_rule(void)
 	rassoc[nrules - 1] = TOKEN;
 }
 
-
-void
-add_symbol(void)
+void add_symbol(void)
 {
 	int c;
 	bucket *bp;
 	int s_lineno = lineno;
 
-	c = (unsigned char) *cptr;
+	c = (unsigned char)*cptr;
 	if (c == '\'' || c == '"')
 		bp = get_literal();
 	else
 		bp = get_name();
 
 	c = nextc();
-	if (c == ':') {
+	if (c == ':')
+	{
 		end_rule();
 		start_rule(bp, s_lineno);
 		++cptr;
@@ -1292,9 +1332,7 @@ add_symbol(void)
 	pitem[nitems - 1] = bp;
 }
 
-
-void
-copy_action(void)
+void copy_action(void)
 {
 	int c, i, n, depth, quote;
 	char *tag;
@@ -1319,63 +1357,82 @@ copy_action(void)
 
 	depth = 0;
 loop:
-	c = (unsigned char) *cptr;
-	if (c == '$') {
-		if (cptr[1] == '<') {
+	c = (unsigned char)*cptr;
+	if (c == '$')
+	{
+		if (cptr[1] == '<')
+		{
 			int d_lineno = lineno;
 			char *d_line = dup_line();
 			char *d_cptr = d_line + (cptr - line);
 
 			++cptr;
 			tag = get_tag();
-			c = (unsigned char) *cptr;
-			if (c == '$') {
+			c = (unsigned char)*cptr;
+			if (c == '$')
+			{
 				fprintf(f, "yyval.%s", tag);
 				++cptr;
 				free(d_line);
 				goto loop;
-			} else if (isdigit(c)) {
+			}
+			else if (isdigit(c))
+			{
 				i = get_number();
 				if (i > n)
 					dollar_warning(d_lineno, i);
 				fprintf(f, "yyvsp[%d].%s", i - n, tag);
 				free(d_line);
 				goto loop;
-			} else if (c == '-' && isdigit((unsigned char) cptr[1])) {
+			}
+			else if (c == '-' && isdigit((unsigned char)cptr[1]))
+			{
 				++cptr;
 				i = -get_number() - n;
 				fprintf(f, "yyvsp[%d].%s", i, tag);
 				free(d_line);
 				goto loop;
-			} else
+			}
+			else
 				dollar_error(d_lineno, d_line, d_cptr);
-		} else if (cptr[1] == '$') {
-			if (ntags) {
+		}
+		else if (cptr[1] == '$')
+		{
+			if (ntags)
+			{
 				tag = plhs[nrules]->tag;
 				if (tag == NULL)
 					untyped_lhs();
 				fprintf(f, "yyval.%s", tag);
-			} else
+			}
+			else
 				fprintf(f, "yyval");
 			cptr += 2;
 			goto loop;
-		} else if (isdigit((unsigned char) cptr[1])) {
+		}
+		else if (isdigit((unsigned char)cptr[1]))
+		{
 			++cptr;
 			i = get_number();
-			if (ntags) {
+			if (ntags)
+			{
 				if (i <= 0 || i > n)
 					unknown_rhs(i);
 				tag = pitem[nitems + i - n - 1]->tag;
 				if (tag == NULL)
 					untyped_rhs(i, pitem[nitems + i - n - 1]->name);
 				fprintf(f, "yyvsp[%d].%s", i - n, tag);
-			} else {
+			}
+			else
+			{
 				if (i > n)
 					dollar_warning(lineno, i);
 				fprintf(f, "yyvsp[%d]", i - n);
 			}
 			goto loop;
-		} else if (cptr[1] == '-') {
+		}
+		else if (cptr[1] == '-')
+		{
 			cptr += 2;
 			i = get_number();
 			if (ntags)
@@ -1384,18 +1441,21 @@ loop:
 			goto loop;
 		}
 	}
-	if (isalpha(c) || c == '_' || c == '$') {
-		do {
+	if (isalpha(c) || c == '_' || c == '$')
+	{
+		do
+		{
 			putc(c, f);
-			c = (unsigned char) *++cptr;
+			c = (unsigned char)*++cptr;
 		} while (isalnum(c) || c == '_' || c == '$');
 		goto loop;
 	}
 	putc(c, f);
 	++cptr;
-	switch (c) {
+	switch (c)
+	{
 	case '\n':
-next_line:
+	next_line:
 		get_line();
 		if (line)
 			goto loop;
@@ -1420,25 +1480,30 @@ next_line:
 		return;
 
 	case '\'':
-	case '"': {
+	case '"':
+	{
 		int s_lineno = lineno;
 		char *s_line = dup_line();
 		char *s_cptr = s_line + (cptr - line - 1);
 
 		quote = c;
-		for (;;) {
-			c = (unsigned char) *cptr++;
+		for (;;)
+		{
+			c = (unsigned char)*cptr++;
 			putc(c, f);
-			if (c == quote) {
+			if (c == quote)
+			{
 				free(s_line);
 				goto loop;
 			}
 			if (c == '\n')
 				unterminated_string(s_lineno, s_line, s_cptr);
-			if (c == '\\') {
-				c = (unsigned char) *cptr++;
+			if (c == '\\')
+			{
+				c = (unsigned char)*cptr++;
 				putc(c, f);
-				if (c == '\n') {
+				if (c == '\n')
+				{
 					get_line();
 					if (line == NULL)
 						unterminated_string(s_lineno, s_line, s_cptr);
@@ -1448,10 +1513,12 @@ next_line:
 	}
 
 	case '/':
-		c = (unsigned char) *cptr;
-		if (c == '/') {
+		c = (unsigned char)*cptr;
+		if (c == '/')
+		{
 			putc('*', f);
-			while ((c = (unsigned char) *++cptr) != '\n') {
+			while ((c = (unsigned char)*++cptr) != '\n')
+			{
 				if (c == '*' && cptr[1] == '/')
 					fprintf(f, "* ");
 				else
@@ -1460,23 +1527,27 @@ next_line:
 			fprintf(f, "*/\n");
 			goto next_line;
 		}
-		if (c == '*') {
+		if (c == '*')
+		{
 			int c_lineno = lineno;
 			char *c_line = dup_line();
 			char *c_cptr = c_line + (cptr - line - 1);
 
 			putc('*', f);
 			++cptr;
-			for (;;) {
-				c = (unsigned char) *cptr++;
+			for (;;)
+			{
+				c = (unsigned char)*cptr++;
 				putc(c, f);
-				if (c == '*' && *cptr == '/') {
+				if (c == '*' && *cptr == '/')
+				{
 					putc('/', f);
 					++cptr;
 					free(c_line);
 					goto loop;
 				}
-				if (c == '\n') {
+				if (c == '\n')
+				{
 					get_line();
 					if (line == NULL)
 						unterminated_comment(c_lineno, c_line, c_cptr);
@@ -1490,25 +1561,24 @@ next_line:
 	}
 }
 
-
-int
-mark_symbol(void)
+int mark_symbol(void)
 {
 	int c;
 	bucket *bp = NULL;
 
-	c = (unsigned char) cptr[1];
-	if (c == '%' || c == '\\') {
+	c = (unsigned char)cptr[1];
+	if (c == '%' || c == '\\')
+	{
 		cptr += 2;
 		return (1);
 	}
 	if (c == '=')
 		cptr += 2;
 	else if ((c == 'p' || c == 'P') &&
-	    ((c = cptr[2]) == 'r' || c == 'R') &&
-	    ((c = cptr[3]) == 'e' || c == 'E') &&
-	    ((c = cptr[4]) == 'c' || c == 'C') &&
-	    ((c = (unsigned char) cptr[5], !IS_IDENT(c))))
+			 ((c = cptr[2]) == 'r' || c == 'R') &&
+			 ((c = cptr[3]) == 'e' || c == 'E') &&
+			 ((c = cptr[4]) == 'c' || c == 'C') &&
+			 ((c = (unsigned char)cptr[5], !IS_IDENT(c))))
 		cptr += 5;
 	else
 		syntax_error(lineno, line, cptr);
@@ -1518,7 +1588,8 @@ mark_symbol(void)
 		bp = get_name();
 	else if (c == '\'' || c == '"')
 		bp = get_literal();
-	else {
+	else
+	{
 		syntax_error(lineno, line, cptr);
 		/* NOTREACHED */
 	}
@@ -1531,61 +1602,61 @@ mark_symbol(void)
 	return (0);
 }
 
-
-void
-read_grammar(void)
+void read_grammar(void)
 {
 	int c;
 
 	initialize_grammar();
 	advance_to_start();
 
-	for (;;) {
+	for (;;)
+	{
 		c = nextc();
 		if (c == EOF)
 			break;
 		if (isalpha(c) || c == '_' || c == '.' || c == '$' || c == '\'' ||
-		    c == '"')
+			c == '"')
 			add_symbol();
 		else if (c == '{' || c == '=')
 			copy_action();
-		else if (c == '|') {
+		else if (c == '|')
+		{
 			end_rule();
 			start_rule(plhs[nrules - 1], 0);
 			++cptr;
-		} else if (c == '%') {
+		}
+		else if (c == '%')
+		{
 			if (mark_symbol())
 				break;
-		} else
+		}
+		else
 			syntax_error(lineno, line, cptr);
 	}
 	end_rule();
 }
 
-
-void
-free_tags(void)
+void free_tags(void)
 {
 	int i;
 
 	if (tag_table == NULL)
 		return;
 
-	for (i = 0; i < ntags; ++i) {
+	for (i = 0; i < ntags; ++i)
+	{
 		assert(tag_table[i]);
 		free(tag_table[i]);
 	}
 	free(tag_table);
 }
 
-
-void
-pack_names(void)
+void pack_names(void)
 {
 	bucket *bp;
 	char *p, *s, *t;
 
-	name_pool_size = 13;	/* 13 == sizeof("$end") + sizeof("$accept") */
+	name_pool_size = 13; /* 13 == sizeof("$end") + sizeof("$accept") */
 	for (bp = first_symbol; bp; bp = bp->next)
 		name_pool_size += strlen(bp->name) + 1;
 	name_pool = malloc(name_pool_size);
@@ -1595,7 +1666,8 @@ pack_names(void)
 	strlcpy(name_pool, "$accept", name_pool_size);
 	strlcpy(name_pool + 8, "$end", name_pool_size - 8);
 	t = name_pool + 13;
-	for (bp = first_symbol; bp; bp = bp->next) {
+	for (bp = first_symbol; bp; bp = bp->next)
+	{
 		p = t;
 		s = bp->name;
 		while ((*t++ = *s++))
@@ -1605,26 +1677,24 @@ pack_names(void)
 	}
 }
 
-
-void
-check_symbols(void)
+void check_symbols(void)
 {
 	bucket *bp;
 
 	if (goal->class == UNKNOWN)
 		undefined_goal(goal->name);
 
-	for (bp = first_symbol; bp; bp = bp->next) {
-		if (bp->class == UNKNOWN) {
+	for (bp = first_symbol; bp; bp = bp->next)
+	{
+		if (bp->class == UNKNOWN)
+		{
 			undefined_symbol_warning(bp->name);
 			bp->class = TERM;
 		}
 	}
 }
 
-
-void
-pack_symbols(void)
+void pack_symbols(void)
 {
 	bucket *bp;
 	bucket **v;
@@ -1632,7 +1702,8 @@ pack_symbols(void)
 
 	nsyms = 2;
 	ntokens = 1;
-	for (bp = first_symbol; bp; bp = bp->next) {
+	for (bp = first_symbol; bp; bp = bp->next)
+	{
 		++nsyms;
 		if (bp->class == TERM)
 			++ntokens;
@@ -1662,7 +1733,8 @@ pack_symbols(void)
 
 	i = 1;
 	j = start_symbol + 1;
-	for (bp = first_symbol; bp; bp = bp->next) {
+	for (bp = first_symbol; bp; bp = bp->next)
+	{
 		if (bp->class == TERM)
 			v[i++] = bp;
 		else
@@ -1676,23 +1748,28 @@ pack_symbols(void)
 	goal->index = start_symbol + 1;
 	k = start_symbol + 2;
 	while (++i < nsyms)
-		if (v[i] != goal) {
+		if (v[i] != goal)
+		{
 			v[i]->index = k;
 			++k;
 		}
 	goal->value = 0;
 	k = 1;
-	for (i = start_symbol + 1; i < nsyms; ++i) {
-		if (v[i] != goal) {
+	for (i = start_symbol + 1; i < nsyms; ++i)
+	{
+		if (v[i] != goal)
+		{
 			v[i]->value = k;
 			++k;
 		}
 	}
 
 	k = 0;
-	for (i = 1; i < ntokens; ++i) {
+	for (i = 1; i < ntokens; ++i)
+	{
 		n = v[i]->value;
-		if (n > 256) {
+		if (n > 256)
+		{
 			for (j = k++; j > 0 && symbol_value[j - 1] > n; --j)
 				symbol_value[j] = symbol_value[j - 1];
 			symbol_value[j] = n;
@@ -1704,9 +1781,12 @@ pack_symbols(void)
 
 	j = 0;
 	n = 257;
-	for (i = 2; i < ntokens; ++i) {
-		if (v[i]->value == UNDEFINED) {
-			while (j < k && n == symbol_value[j]) {
+	for (i = 2; i < ntokens; ++i)
+	{
+		if (v[i]->value == UNDEFINED)
+		{
+			while (j < k && n == symbol_value[j])
+			{
 				while (++j < k && n == symbol_value[j])
 					continue;
 				++n;
@@ -1720,7 +1800,8 @@ pack_symbols(void)
 	symbol_value[0] = 0;
 	symbol_prec[0] = 0;
 	symbol_assoc[0] = TOKEN;
-	for (i = 1; i < ntokens; ++i) {
+	for (i = 1; i < ntokens; ++i)
+	{
 		symbol_name[i] = v[i]->name;
 		symbol_value[i] = v[i]->value;
 		symbol_prec[i] = v[i]->prec;
@@ -1730,7 +1811,8 @@ pack_symbols(void)
 	symbol_value[start_symbol] = -1;
 	symbol_prec[start_symbol] = 0;
 	symbol_assoc[start_symbol] = TOKEN;
-	for (++i; i < nsyms; ++i) {
+	for (++i; i < nsyms; ++i)
+	{
 		k = v[i]->index;
 		symbol_name[k] = v[i]->name;
 		symbol_value[k] = v[i]->value;
@@ -1741,9 +1823,7 @@ pack_symbols(void)
 	free(v);
 }
 
-
-void
-pack_grammar(void)
+void pack_grammar(void)
 {
 	int i, j;
 	int assoc, pprec;
@@ -1776,14 +1856,17 @@ pack_grammar(void)
 	rrhs[2] = 1;
 
 	j = 4;
-	for (i = 3; i < nrules; ++i) {
+	for (i = 3; i < nrules; ++i)
+	{
 		rlhs[i] = plhs[i]->index;
 		rrhs[i] = j;
 		assoc = TOKEN;
 		pprec = 0;
-		while (pitem[j]) {
+		while (pitem[j])
+		{
 			ritem[j] = pitem[j]->index;
-			if (pitem[j]->class == TERM) {
+			if (pitem[j]->class == TERM)
+			{
 				pprec = pitem[j]->prec;
 				assoc = pitem[j]->assoc;
 			}
@@ -1791,7 +1874,8 @@ pack_grammar(void)
 		}
 		ritem[j] = -i;
 		++j;
-		if (rprec[i] == UNDEFINED) {
+		if (rprec[i] == UNDEFINED)
+		{
 			rprec[i] = pprec;
 			rassoc[i] = assoc;
 		}
@@ -1802,9 +1886,7 @@ pack_grammar(void)
 	free(pitem);
 }
 
-
-void
-print_grammar(void)
+void print_grammar(void)
 {
 	int i, j, k;
 	int spacing = 0;
@@ -1814,13 +1896,17 @@ print_grammar(void)
 		return;
 
 	k = 1;
-	for (i = 2; i < nrules; ++i) {
-		if (rlhs[i] != rlhs[i - 1]) {
+	for (i = 2; i < nrules; ++i)
+	{
+		if (rlhs[i] != rlhs[i - 1])
+		{
 			if (i != 2)
 				fprintf(f, "\n");
 			fprintf(f, "%4d  %s :", i - 2, symbol_name[rlhs[i]]);
 			spacing = strlen(symbol_name[rlhs[i]]) + 1;
-		} else {
+		}
+		else
+		{
 			fprintf(f, "%4d  ", i - 2);
 			j = spacing;
 			while (--j >= 0)
@@ -1828,7 +1914,8 @@ print_grammar(void)
 			putc('|', f);
 		}
 
-		while (ritem[k] >= 0) {
+		while (ritem[k] >= 0)
+		{
 			fprintf(f, " %s", symbol_name[ritem[k]]);
 			++k;
 		}
@@ -1837,9 +1924,7 @@ print_grammar(void)
 	}
 }
 
-
-void
-reader(void)
+void reader(void)
 {
 	write_section(banner);
 	create_symbol_table();

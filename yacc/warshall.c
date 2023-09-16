@@ -37,8 +37,7 @@
 
 void transitive_closure(unsigned int *, int);
 
-void
-transitive_closure(unsigned int *R, int n)
+void transitive_closure(unsigned int *R, int n)
 {
 	int rowsize;
 	unsigned int i;
@@ -50,24 +49,30 @@ transitive_closure(unsigned int *R, int n)
 	cword = R;
 	i = 0;
 	rowi = R;
-	while (rowi < relend) {
+	while (rowi < relend)
+	{
 		ccol = cword;
 		rowj = R;
 
-		while (rowj < relend) {
-			if (*ccol & (1 << i)) {
+		while (rowj < relend)
+		{
+			if (*ccol & (1 << i))
+			{
 				rp = rowi;
 				rend = rowj + rowsize;
 				while (rowj < rend)
 					*rowj++ |= *rp++;
-			} else {
+			}
+			else
+			{
 				rowj += rowsize;
 			}
 
 			ccol += rowsize;
 		}
 
-		if (++i >= BITS_PER_WORD) {
+		if (++i >= BITS_PER_WORD)
+		{
 			i = 0;
 			cword++;
 		}
@@ -75,8 +80,7 @@ transitive_closure(unsigned int *R, int n)
 	}
 }
 
-void
-reflexive_transitive_closure(unsigned int *R, int n)
+void reflexive_transitive_closure(unsigned int *R, int n)
 {
 	int rowsize;
 	unsigned int i;
@@ -89,9 +93,11 @@ reflexive_transitive_closure(unsigned int *R, int n)
 
 	i = 0;
 	rp = R;
-	while (rp < relend) {
+	while (rp < relend)
+	{
 		*rp |= (1 << i);
-		if (++i >= BITS_PER_WORD) {
+		if (++i >= BITS_PER_WORD)
+		{
 			i = 0;
 			rp++;
 		}

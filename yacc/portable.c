@@ -19,21 +19,22 @@
 
 #include "portable.h"
 
-int
-asprintf(char **ret, const char *format, ...)
+int asprintf(char **ret, const char *format, ...)
 {
 	int retval;
 	va_list ap;
 
 	va_start(ap, format);
 
-	if ((*ret = malloc(32)) == NULL) {
+	if ((*ret = malloc(32)) == NULL)
+	{
 		retval = -1;
 		goto out;
 	}
 
-	if ((retval = vsprintf(*ret, format, ap)) > 31) {
-		(void) fprintf(stderr, "asprintf failed\n");
+	if ((retval = vsprintf(*ret, format, ap)) > 31)
+	{
+		(void)fprintf(stderr, "asprintf failed\n");
 		exit(1);
 	}
 
@@ -77,13 +78,14 @@ out:
  * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
  * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
  */
-#define MUL_NO_OVERFLOW	((size_t)1 << (sizeof(size_t) * 4))
+#define MUL_NO_OVERFLOW ((size_t)1 << (sizeof(size_t) * 4))
 
 void *
 reallocarray(void *optr, size_t nmemb, size_t size)
 {
 	if ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
-	    nmemb > 0 && SIZE_MAX / nmemb < size) {
+		nmemb > 0 && SIZE_MAX / nmemb < size)
+	{
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -127,22 +129,25 @@ strlcpy(char *dst, const char *src, size_t dsize)
 	size_t nleft = dsize;
 
 	/* Copy as many bytes as will fit. */
-	if (nleft != 0) {
-		while (--nleft != 0) {
+	if (nleft != 0)
+	{
+		while (--nleft != 0)
+		{
 			if ((*dst++ = *src++) == '\0')
 				break;
 		}
 	}
 
 	/* Not enough room in dst, add NUL and traverse rest of src. */
-	if (nleft == 0) {
+	if (nleft == 0)
+	{
 		if (dsize != 0)
-			*dst = '\0';		/* NUL-terminate dst */
+			*dst = '\0'; /* NUL-terminate dst */
 		while (*src++)
 			;
 	}
 
-	return(src - osrc - 1);	/* count does not include NUL */
+	return (src - osrc - 1); /* count does not include NUL */
 }
 
 #endif /* HAVE_STRLCPY */
