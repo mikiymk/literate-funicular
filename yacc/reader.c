@@ -1924,6 +1924,9 @@ void print_grammar(void)
 	}
 }
 
+/**
+ * 入力ファイルから読み込む
+ */
 void reader(void)
 {
 	write_section(banner);

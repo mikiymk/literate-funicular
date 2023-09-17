@@ -47,6 +47,9 @@
 /*  the body either are not useful outside of semantic actions or	*/
 /*  are conditional.							*/
 
+/**
+ * 最初の定義
+ */
 char *banner[] =
 	{
 		"#include <stdlib.h>",
@@ -379,6 +382,14 @@ char *trailer[] =
 		"}",
 		NULL};
 
+/**
+ * write_section
+ *
+ * 引数
+ * - section - １行ずつのテキストの配列
+ *
+ * 文字列のリストをコードファイルに１行ずつ出力する
+ */
 void write_section(char *section[])
 {
 	int i;

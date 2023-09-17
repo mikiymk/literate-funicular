@@ -107,6 +107,10 @@ lookup(char *name)
 	return (bp);
 }
 
+/**
+ * symbol_tableのメモリをアロケートする
+ * 最初のバケットを作成する
+ */
 void create_symbol_table(void)
 {
 	bucket *bp;

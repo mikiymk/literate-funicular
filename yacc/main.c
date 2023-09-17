@@ -254,7 +254,8 @@ void create_file_names(void)
 				no_space();
 
 			/* does the output_file_name have a known suffix */
-			// 拡張子が以下のうちにあるなら
+			// output_fileの拡張子が以下のうちにあるなら
+			// .c .C .cc .cxx .cpp
 			if ((suffix = strrchr(output_file_name, '.')) != 0 &&
 				(!strcmp(suffix, ".c") ||	/* good, old-fashioned C */
 				 !strcmp(suffix, ".C") ||	/* C++, or C on Windows */
@@ -262,7 +263,7 @@ void create_file_names(void)
 				 !strcmp(suffix, ".cxx") || /* C++ */
 				 !strcmp(suffix, ".cpp")))
 			{ /* C++ (Windows) */
-				// そこの部分を.hで終わらせる
+				// defines_fileを拡張子を.hに変えたファイル名にする
 				strncpy(defines_file_name, output_file_name,
 						suffix - output_file_name + 1);
 				defines_file_name[suffix - output_file_name + 1] = 'h';
@@ -300,6 +301,9 @@ void create_file_names(void)
 	}
 }
 
+/**
+ * 一時ファイルを作成する
+ */
 FILE *create_temp(void)
 {
 	FILE *f;
@@ -317,6 +321,7 @@ void open_files(void)
 {
 	create_file_names();
 
+	// 入力ファイルを読み込みモードで開く
 	if (input_file == NULL)
 	{
 		input_file = fopen(input_file_name, "r");
@@ -327,12 +332,15 @@ void open_files(void)
 
 	text_file = create_temp();
 
+	// 詳細ファイルを書き込みモードで開く
 	if (vflag)
 	{
 		verbose_file = fopen(verbose_file_name, "w");
 		if (verbose_file == NULL)
 			open_error(verbose_file_name);
 	}
+
+	// ヘッダーファイルを書き込みモードで開く
 	if (dflag)
 	{
 		defines_file = fopen(defines_file_name, "w");
@@ -340,16 +348,20 @@ void open_files(void)
 			open_write_error(defines_file_name);
 		union_file = create_temp();
 	}
+
+	// 出力ファイルを書き込みモードで開く
 	output_file = fopen(output_file_name, "w");
 	if (output_file == NULL)
 		open_error(output_file_name);
 
+	// コードファイルを書き込みモードで開く
 	if (rflag)
 	{
 		code_file = fopen(code_file_name, "w");
 		if (code_file == NULL)
 			open_error(code_file_name);
 	}
+	// -rオプションが指定されていない場合、出力ファイルをコードファイルにする
 	else
 		code_file = output_file;
 }
