@@ -100,17 +100,34 @@ void lalr(void)
 	free_nullable();
 }
 
+/**
+ * 状態テーブルを作成します。
+ * 読み込み
+ * - nstates
+ * - first_state
+ *
+ * 書き込み
+ * - state_table
+ */
 void set_state_table(void)
 {
-	core *sp;
-
 	state_table = NEW2(nstates, core *);
-	for (sp = first_state; sp; sp = sp->next)
+	for (core *state_p = first_state; state_p; state_p = state_p->next)
 	{
-		state_table[sp->number] = sp;
+		state_table[state_p->number] = state_p;
 	}
 }
 
+/**
+ * 状態のアクセスシンボルの配列を作成します。
+ *
+ *  * 読み込み
+ * - nstates
+ * - first_state
+ *
+ * 書き込み
+ * - accessing_symbol
+ */
 void set_accessing_symbol(void)
 {
 	core *sp;

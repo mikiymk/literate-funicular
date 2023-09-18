@@ -39,7 +39,10 @@ extern short *itemset;
 extern short *itemsetend;
 extern unsigned *ruleset;
 
+// 状態の数
 int nstates;
+
+// 最初の状態
 core *first_state;
 shifts *first_shift;
 reductions *first_reduction;
