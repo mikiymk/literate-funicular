@@ -148,7 +148,8 @@ strlcpy(char *dst, const char *src, size_t dsize)
 			*dst = '\0';
 		} /* NUL-terminate dst */
 		while (*src++)
-			;
+		{
+		}
 	}
 
 	return (src - osrc - 1); /* count does not include NUL */

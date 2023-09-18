@@ -64,7 +64,9 @@ void verbose(void)
 	}
 	fprintf(verbose_file, "\f\n");
 	for (i = 0; i < nstates; i++)
+	{
 		print_state(i);
+	}
 	free(null_rules);
 
 	if (nunused)
@@ -94,7 +96,9 @@ void log_unused(void)
 		{
 			fprintf(verbose_file, "\t%s :", symbol_name[rlhs[i]]);
 			for (p = ritem + rrhs[i]; *p >= 0; ++p)
+			{
 				fprintf(verbose_file, " %s", symbol_name[*p]);
+			}
 			fprintf(verbose_file, "  (%d)\n", i - 2);
 		}
 	}
@@ -228,12 +232,16 @@ void print_core(int state)
 		sp1 = sp = ritem + statep->items[i];
 
 		while (*sp >= 0)
+		{
 			++sp;
+		}
 		rule = -(*sp);
 		fprintf(verbose_file, "\t%s : ", symbol_name[rlhs[rule]]);
 
 		for (sp = ritem + rrhs[rule]; sp < sp1; sp++)
+		{
 			fprintf(verbose_file, "%s ", symbol_name[*sp]);
+		}
 
 		putc('.', verbose_file);
 
@@ -261,7 +269,9 @@ void print_nulls(int state)
 			if (rrhs[i] + 1 == rrhs[i + 1])
 			{
 				for (j = 0; j < nnulls && i > null_rules[j]; ++j)
+				{
 					continue;
+				}
 
 				if (j == nnulls)
 				{
@@ -272,7 +282,9 @@ void print_nulls(int state)
 				{
 					++nnulls;
 					for (k = nnulls - 1; k > j; --k)
+					{
 						null_rules[k] = null_rules[k - 1];
+					}
 					null_rules[j] = i;
 				}
 			}

@@ -61,7 +61,9 @@ void transitive_closure(unsigned int *R, int n)
 				rp = rowi;
 				rend = rowj + rowsize;
 				while (rowj < rend)
+				{
 					*rowj++ |= *rp++;
+				}
 			}
 			else
 			{

@@ -307,7 +307,9 @@ void token_actions(void)
 		if (parser[i])
 		{
 			for (j = 0; j < 2 * ntokens; ++j)
+			{
 				actionrow[j] = 0;
+			}
 			shiftcount = 0;
 			reducecount = 0;
 			for (p = parser[i]; p; p = p->next)
@@ -446,7 +448,9 @@ int default_goto(int symbol)
 	memset(state_count, 0, nstates * sizeof(short));
 
 	for (i = m; i < n; i++)
+	{
 		state_count[to_state[i]]++;
+	}
 
 	max = 0;
 	default_state = 0;
@@ -527,14 +531,20 @@ void sort_actions(void)
 			j = nentries - 1;
 
 			while (j >= 0 && (width[order[j]] < w))
+			{
 				j--;
+			}
 
 			while (j >= 0 && (width[order[j]] == w) &&
 				   (tally[order[j]] < t))
+			{
 				j--;
+			}
 
 			for (k = nentries - 1; k > j; k--)
+			{
 				order[k + 1] = order[k];
+			}
 
 			order[j + 1] = i;
 			nentries++;
@@ -559,7 +569,9 @@ void pack_table(void)
 	high = 0;
 
 	for (i = 0; i < maxtable; i++)
+	{
 		check[i] = -1;
+	}
 
 	for (i = 0; i < nentries; i++)
 	{
@@ -659,10 +671,12 @@ int pack_vector(int vector)
 
 	j = lowzero - from[0];
 	for (k = 1; k < t; ++k)
+	{
 		if (lowzero - from[k] > j)
 		{
 			j = lowzero - from[k];
 		}
+	}
 	for (;; ++j)
 	{
 		if (j == 0)
@@ -729,7 +743,9 @@ int pack_vector(int vector)
 			}
 
 			while (lowzero < maxtable && check[lowzero] != -1)
+			{
 				++lowzero;
+			}
 
 			return (j);
 		}
@@ -991,7 +1007,9 @@ void output_defines(void)
 	{
 		rewind(union_file);
 		while ((c = getc(union_file)) != EOF)
+		{
 			putc(c, defines_file);
+		}
 		fprintf(defines_file, " YYSTYPE;\n");
 		fprintf(defines_file, "#endif /* YYSTYPE_DEFINED */\n");
 		fprintf(defines_file, "extern YYSTYPE %slval;\n",
@@ -1048,10 +1066,12 @@ void output_debug(void)
 
 	max = 0;
 	for (i = 2; i < ntokens; ++i)
+	{
 		if (symbol_value[i] > max)
 		{
 			max = symbol_value[i];
 		}
+	}
 	++outline;
 	fprintf(code_file, "#define YYMAXTOKEN %d\n", max);
 
@@ -1062,7 +1082,9 @@ void output_debug(void)
 	}
 
 	for (i = ntokens - 1; i >= 2; --i)
+	{
 		symnam[symbol_value[i]] = symbol_name[i];
+	}
 	symnam[0] = "end-of-file";
 
 	if (!rflag)
@@ -1291,7 +1313,9 @@ void output_debug(void)
 					}
 					s += 2;
 					while (*++s != '\'')
+					{
 						putc(*s, output_file);
+					}
 					putc('\'', output_file);
 				}
 				else

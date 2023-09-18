@@ -106,7 +106,9 @@ void set_state_table(void)
 
 	state_table = NEW2(nstates, core *);
 	for (sp = first_state; sp; sp = sp->next)
+	{
 		state_table[sp->number] = sp;
+	}
 }
 
 void set_accessing_symbol(void)
@@ -115,7 +117,9 @@ void set_accessing_symbol(void)
 
 	accessing_symbol = NEW2(nstates, short);
 	for (sp = first_state; sp; sp = sp->next)
+	{
 		accessing_symbol[sp->number] = sp->accessing_symbol;
+	}
 }
 
 void set_shift_table(void)
@@ -124,7 +128,9 @@ void set_shift_table(void)
 
 	shift_table = NEW2(nstates, shifts *);
 	for (sp = first_shift; sp; sp = sp->next)
+	{
 		shift_table[sp->number] = sp;
+	}
 }
 
 void set_reduction_table(void)
@@ -133,7 +139,9 @@ void set_reduction_table(void)
 
 	reduction_table = NEW2(nstates, reductions *);
 	for (rp = first_reduction; rp; rp = rp->next)
+	{
 		reduction_table[rp->number] = rp;
+	}
 }
 
 void set_maxrhs(void)
@@ -241,7 +249,9 @@ void set_goto_map(void)
 	}
 
 	for (i = ntokens; i < nsyms; i++)
+	{
 		goto_map[i] = temp_map[i];
+	}
 
 	goto_map[nsyms] = ngotos;
 	temp_map[nsyms] = ngotos;
@@ -349,7 +359,9 @@ void initialize_F(void)
 				reads[i] = rp = NEW2(nedges + 1, short);
 
 				for (j = 0; j < nedges; j++)
+				{
 					rp[j] = edge[j];
+				}
 
 				rp[nedges] = -1;
 				nedges = 0;
@@ -363,7 +375,9 @@ void initialize_F(void)
 	digraph(reads);
 
 	for (i = 0; i < ngotos; i++)
+	{
 		free(reads[i]);
+	}
 
 	free(reads);
 	free(edge);
@@ -437,7 +451,9 @@ void build_relations(void)
 		{
 			includes[i] = shortp = NEW2(nedges + 1, short);
 			for (j = 0; j < nedges; j++)
+			{
 				shortp[j] = edge[j];
+			}
 			shortp[nedges] = -1;
 		}
 	}
@@ -445,7 +461,9 @@ void build_relations(void)
 	new_includes = transpose(includes, ngotos);
 
 	for (i = 0; i < ngotos; i++)
+	{
 		free(includes[i]);
+	}
 
 	free(includes);
 
@@ -496,7 +514,9 @@ transpose(short **old_R, int n)
 		if (sp)
 		{
 			while (*sp >= 0)
+			{
 				nedges[*sp++]++;
+			}
 		}
 	}
 
@@ -523,7 +543,9 @@ transpose(short **old_R, int n)
 		if (sp)
 		{
 			while (*sp >= 0)
+			{
 				*temp_R[*sp++]++ = i;
+			}
 		}
 	}
 
@@ -554,17 +576,21 @@ void compute_lookaheads(void)
 			fp1 = rowp;
 			fp2 = F + tokensetsize * sp->value;
 			while (fp1 < fp3)
+			{
 				*fp1++ |= *fp2++;
+			}
 		}
 		rowp = fp3;
 	}
 
 	for (i = 0; i < n; i++)
+	{
 		for (sp = lookback[i]; sp; sp = next)
 		{
 			next = sp->next;
 			free(sp);
 		}
+	}
 
 	free(lookback);
 	free(F);
@@ -582,10 +608,12 @@ void digraph(short **relation)
 
 	memset(INDEX, 0, ngotos * sizeof(short));
 	for (i = 0; i < ngotos; i++)
+	{
 		if (R[i])
 		{
 			traverse(i);
 		}
+	}
 
 	free(INDEX);
 	free(VERTICES);
@@ -622,7 +650,9 @@ void traverse(int i)
 			fp2 = F + j * tokensetsize;
 
 			while (fp1 < fp3)
+			{
 				*fp1++ |= *fp2++;
+			}
 		}
 	}
 
@@ -642,7 +672,9 @@ void traverse(int i)
 			fp2 = F + j * tokensetsize;
 
 			while (fp1 < fp3)
+			{
 				*fp2++ = *fp1++;
+			}
 		}
 	}
 }

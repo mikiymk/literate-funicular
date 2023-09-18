@@ -55,7 +55,9 @@ int hash(char *name)
 	s = name;
 	k = *s;
 	while ((c = *++s))
+	{
 		k = (31 * k + c) & (TABLE_SIZE - 1);
+	}
 
 	return (k);
 }

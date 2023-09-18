@@ -69,7 +69,9 @@ void make_parser(void)
 
 	parser = NEW2(nstates, action *);
 	for (i = 0; i < nstates; i++)
+	{
 		parser[i] = parse_actions(i);
+	}
 
 	find_final_state();
 	remove_conflicts();
@@ -157,7 +159,9 @@ add_reduce(action *actions, int ruleno, int symbol)
 
 	prev = 0;
 	for (next = actions; next && next->symbol < symbol; next = next->next)
+	{
 		prev = next;
+	}
 
 	while (next && next->symbol == symbol && next->action_code == SHIFT)
 	{
@@ -235,10 +239,12 @@ void unused_rules(void)
 
 	nunused = 0;
 	for (i = 3; i < nrules; ++i)
+	{
 		if (!rules_used[i])
 		{
 			++nunused;
 		}
+	}
 
 	if (nunused)
 	{
@@ -397,7 +403,9 @@ void defreds(void)
 
 	defred = NEW2(nstates, short);
 	for (i = 0; i < nstates; i++)
+	{
 		defred[i] = sole_reduction(i);
+	}
 }
 
 void free_action_row(action *p)
@@ -417,7 +425,9 @@ void free_parser(void)
 	int i;
 
 	for (i = 0; i < nstates; i++)
+	{
 		free_action_row(parser[i]);
+	}
 
 	free(parser);
 }

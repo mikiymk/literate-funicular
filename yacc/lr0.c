@@ -256,7 +256,9 @@ void initialize_states(void)
 
 	start_derives = derives[start_symbol];
 	for (i = 0; start_derives[i] >= 0; ++i)
+	{
 		continue;
+	}
 
 	p = malloc(sizeof(core) + i * sizeof(short));
 	if (p == NULL)
@@ -271,7 +273,9 @@ void initialize_states(void)
 	p->nitems = i;
 
 	for (i = 0; start_derives[i] >= 0; ++i)
+	{
 		p->items[i] = rrhs[start_derives[i]];
+	}
 
 	first_state = last_state = this_state = p;
 	nstates = 1;
@@ -334,7 +338,9 @@ new_state(int symbol)
 
 	isp2 = p->items;
 	while (isp1 < iend)
+	{
 		*isp2++ = *isp1++;
+	}
 
 	last_state->next = p;
 	last_state = p;
@@ -359,7 +365,9 @@ void save_shifts(void)
 	send = shiftset + nshifts;
 
 	while (sp1 < send)
+	{
 		*sp2++ = *sp1++;
+	}
 
 	if (last_shift)
 	{
@@ -402,7 +410,9 @@ void save_reductions(void)
 		rend = rp1 + count;
 
 		while (rp1 < rend)
+		{
 			*rp2++ = *rp1++;
+		}
 
 		if (last_reduction)
 		{

@@ -189,7 +189,9 @@ dup_line(void)
 	}
 	s = line;
 	while (*s != '\n')
+	{
 		++s;
+	}
 	p = malloc(s - line + 1);
 	if (p == NULL)
 	{
@@ -199,7 +201,9 @@ dup_line(void)
 	s = line;
 	t = p;
 	while ((*t++ = *s++) != '\n')
+	{
 		continue;
+	}
 	return (p);
 }
 
@@ -975,7 +979,9 @@ int is_reserved(char *name)
 	{
 		s = name + 3;
 		while (isdigit((unsigned char)*s))
+		{
 			++s;
+		}
 		if (*s == NUL)
 		{
 			return (1);
@@ -991,7 +997,9 @@ get_name(void)
 
 	cinc = 0;
 	for (c = (unsigned char)*cptr; IS_IDENT(c); c = (unsigned char)*++cptr)
+	{
 		cachec(c);
+	}
 	cachec(NUL);
 
 	if (is_reserved(cache))
@@ -1503,7 +1511,9 @@ void end_rule(void)
 	if (!last_was_action && plhs[nrules]->tag)
 	{
 		for (i = nitems - 1; pitem[i]; --i)
+		{
 			continue;
+		}
 		if (i == maxitems - 1 || pitem[i + 1] == 0 ||
 			pitem[i + 1]->tag != plhs[nrules]->tag)
 			default_action_warning();
@@ -1537,7 +1547,9 @@ void insert_empty_rule(void)
 	bpp = pitem + nitems - 1;
 	*bpp-- = bp;
 	while ((bpp[0] = bpp[-1]))
+	{
 		--bpp;
+	}
 
 	if (++nrules >= maxrules)
 	{
@@ -1615,7 +1627,9 @@ void copy_action(void)
 
 	n = 0;
 	for (i = nitems - 1; pitem[i]; --i)
+	{
 		++n;
+	}
 
 	depth = 0;
 loop:
@@ -1976,7 +1990,9 @@ void pack_names(void)
 
 	name_pool_size = 13; /* 13 == sizeof("$end") + sizeof("$accept") */
 	for (bp = first_symbol; bp; bp = bp->next)
+	{
 		name_pool_size += strlen(bp->name) + 1;
+	}
 	name_pool = malloc(name_pool_size);
 	if (name_pool == NULL)
 	{
@@ -1991,7 +2007,9 @@ void pack_names(void)
 		p = t;
 		s = bp->name;
 		while ((*t++ = *s++))
+		{
 			continue;
+		}
 		free(bp->name);
 		bp->name = p;
 	}
@@ -2081,16 +2099,20 @@ void pack_symbols(void)
 	assert(i == ntokens && j == nsyms);
 
 	for (i = 1; i < ntokens; ++i)
+	{
 		v[i]->index = i;
+	}
 
 	goal->index = start_symbol + 1;
 	k = start_symbol + 2;
 	while (++i < nsyms)
+	{
 		if (v[i] != goal)
 		{
 			v[i]->index = k;
 			++k;
 		}
+	}
 	goal->value = 0;
 	k = 1;
 	for (i = start_symbol + 1; i < nsyms; ++i)
@@ -2109,7 +2131,9 @@ void pack_symbols(void)
 		if (n > 256)
 		{
 			for (j = k++; j > 0 && symbol_value[j - 1] > n; --j)
+			{
 				symbol_value[j] = symbol_value[j - 1];
+			}
 			symbol_value[j] = n;
 		}
 	}
@@ -2128,7 +2152,9 @@ void pack_symbols(void)
 			while (j < k && n == symbol_value[j])
 			{
 				while (++j < k && n == symbol_value[j])
+				{
 					continue;
+				}
 				++n;
 			}
 			v[i]->value = n;
@@ -2264,7 +2290,9 @@ void print_grammar(void)
 			fprintf(f, "%4d  ", i - 2);
 			j = spacing;
 			while (--j >= 0)
+			{
 				putc(' ', f);
+			}
 			putc('|', f);
 		}
 

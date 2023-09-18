@@ -51,7 +51,9 @@ print_closure(int n)
 
 	printf("\n\nn = %d\n\n", n);
 	for (isp = itemset; isp < itemsetend; isp++)
+	{
 		printf("   %d\n", *isp);
+	}
 }
 
 static void
@@ -219,7 +221,9 @@ void closure(short *nucleus, int n)
 			dsp = first_derives + symbol * rulesetsize;
 			rsp = ruleset;
 			while (rsp < rsend)
+			{
 				*rsp++ |= *dsp++;
+			}
 		}
 	}
 
@@ -237,10 +241,14 @@ void closure(short *nucleus, int n)
 				{
 					itemno = rrhs[ruleno + i];
 					while (csp < csend && *csp < itemno)
+					{
 						*itemsetend++ = *csp++;
+					}
 					*itemsetend++ = itemno;
 					while (csp < csend && *csp == itemno)
+					{
 						++csp;
+					}
 				}
 			}
 		}
@@ -248,7 +256,9 @@ void closure(short *nucleus, int n)
 	}
 
 	while (csp < csend)
+	{
 		*itemsetend++ = *csp++;
+	}
 
 #ifdef DEBUG
 	print_closure(n);
