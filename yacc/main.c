@@ -191,10 +191,14 @@ void getargs(int argc, char *argv[])
 
 	// ただ一つの引数でない場合は使い方を表示して終了
 	if (argc != 1)
+	{
 		usage();
+	}
 	// 引数が"-"なら標準入力を入力ファイルとする
 	if (strcmp(*argv, "-") == 0)
+	{
 		input_file = stdin;
+	}
 	// それ以外の場合、入力ファイルを受け取る
 	else
 		input_file_name = *argv;
@@ -210,7 +214,9 @@ allocate(size_t n)
 	{
 		v = calloc(1, n);
 		if (!v)
+		{
 			no_space();
+		}
 	}
 	return (v);
 }
@@ -227,14 +233,18 @@ void create_file_names(void)
 	{
 		// {prefix}.tab.cになります。
 		if (asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX) == -1)
+		{
 			no_space();
+		}
 	}
 	// -rオプション
 	if (rflag)
 	{
 		// {prefix}.code.cになります。
 		if (asprintf(&code_file_name, "%s%s", file_prefix, CODE_SUFFIX) == -1)
+		{
 			no_space();
+		}
 	}
 	else
 		code_file_name = output_file_name;
@@ -251,7 +261,9 @@ void create_file_names(void)
 
 			defines_file_name = strdup(output_file_name);
 			if (defines_file_name == 0)
+			{
 				no_space();
+			}
 
 			/* does the output_file_name have a known suffix */
 			// output_fileの拡張子が以下のうちにあるなら
@@ -310,7 +322,9 @@ FILE *create_temp(void)
 
 	f = tmpfile();
 	if (f == NULL)
+	{
 		tempfile_error();
+	}
 	return f;
 }
 
@@ -326,7 +340,9 @@ void open_files(void)
 	{
 		input_file = fopen(input_file_name, "r");
 		if (input_file == NULL)
+		{
 			open_error(input_file_name);
+		}
 	}
 	action_file = create_temp();
 
@@ -337,7 +353,9 @@ void open_files(void)
 	{
 		verbose_file = fopen(verbose_file_name, "w");
 		if (verbose_file == NULL)
+		{
 			open_error(verbose_file_name);
+		}
 	}
 
 	// ヘッダーファイルを書き込みモードで開く
@@ -345,21 +363,27 @@ void open_files(void)
 	{
 		defines_file = fopen(defines_file_name, "w");
 		if (defines_file == NULL)
+		{
 			open_write_error(defines_file_name);
+		}
 		union_file = create_temp();
 	}
 
 	// 出力ファイルを書き込みモードで開く
 	output_file = fopen(output_file_name, "w");
 	if (output_file == NULL)
+	{
 		open_error(output_file_name);
+	}
 
 	// コードファイルを書き込みモードで開く
 	if (rflag)
 	{
 		code_file = fopen(code_file_name, "w");
 		if (code_file == NULL)
+		{
 			open_error(code_file_name);
+		}
 	}
 	// -rオプションが指定されていない場合、出力ファイルをコードファイルにする
 	else
@@ -384,7 +408,9 @@ int main(int argc, char *argv[])
 	// wpath = 読み込み用ファイルシステム
 	// cpath = ファイル・ディレクトリ作成用ファイルシステム
 	if (pledge("stdio rpath wpath cpath", NULL) == -1)
+	{
 		fatal("pledge: invalid arguments");
+	}
 #endif
 
 	getargs(argc, argv);

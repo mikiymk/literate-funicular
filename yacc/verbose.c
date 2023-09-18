@@ -53,20 +53,28 @@ void verbose(void)
 	int i;
 
 	if (!vflag)
+	{
 		return;
+	}
 
 	null_rules = reallocarray(NULL, nrules, sizeof(short));
 	if (null_rules == NULL)
+	{
 		no_space();
+	}
 	fprintf(verbose_file, "\f\n");
 	for (i = 0; i < nstates; i++)
 		print_state(i);
 	free(null_rules);
 
 	if (nunused)
+	{
 		log_unused();
+	}
 	if (SRtotal || RRtotal)
+	{
 		log_conflicts();
+	}
 
 	fprintf(verbose_file, "\n\n%d terminals, %d nonterminals\n", ntokens,
 			nvars);
@@ -103,17 +111,27 @@ void log_conflicts(void)
 		{
 			fprintf(verbose_file, "State %d contains ", i);
 			if (SRconflicts[i] == 1)
+			{
 				fprintf(verbose_file, "1 shift/reduce conflict");
+			}
 			else if (SRconflicts[i] > 1)
+			{
 				fprintf(verbose_file, "%d shift/reduce conflicts",
 						SRconflicts[i]);
+			}
 			if (SRconflicts[i] && RRconflicts[i])
+			{
 				fprintf(verbose_file, ", ");
+			}
 			if (RRconflicts[i] == 1)
+			{
 				fprintf(verbose_file, "1 reduce/reduce conflict");
+			}
 			else if (RRconflicts[i] > 1)
+			{
 				fprintf(verbose_file, "%d reduce/reduce conflicts",
 						RRconflicts[i]);
+			}
 			fprintf(verbose_file, ".\n");
 		}
 	}
@@ -122,9 +140,13 @@ void log_conflicts(void)
 void print_state(int state)
 {
 	if (state)
+	{
 		fprintf(verbose_file, "\n\n");
+	}
 	if (SRconflicts[state] || RRconflicts[state])
+	{
 		print_conflicts(state);
+	}
 	fprintf(verbose_file, "state %d\n", state);
 	print_core(state);
 	print_nulls(state);
@@ -140,16 +162,22 @@ void print_conflicts(int state)
 	for (p = parser[state]; p; p = p->next)
 	{
 		if (p->suppressed == 2)
+		{
 			continue;
+		}
 
 		if (p->symbol != symbol)
 		{
 			symbol = p->symbol;
 			number = p->number;
 			if (p->action_code == SHIFT)
+			{
 				act = SHIFT;
+			}
 			else
+			{
 				act = REDUCE;
+			}
 		}
 		else if (p->suppressed == 1)
 		{
@@ -267,7 +295,9 @@ void print_actions(int stateno)
 	int as;
 
 	if (stateno == final_state)
+	{
 		fprintf(verbose_file, "\t$end  accept\n");
+	}
 
 	p = parser[stateno];
 	if (p)
@@ -280,7 +310,9 @@ void print_actions(int stateno)
 	{
 		as = accessing_symbol[sp->shift[sp->nshifts - 1]];
 		if (ISVAR(as))
+		{
 			print_gotos(stateno);
+		}
 	}
 }
 
@@ -293,7 +325,9 @@ void print_shifts(action *p)
 	for (q = p; q; q = q->next)
 	{
 		if (q->suppressed < 2 && q->action_code == SHIFT)
+		{
 			++count;
+		}
 	}
 
 	if (count > 0)
@@ -301,8 +335,10 @@ void print_shifts(action *p)
 		for (; p; p = p->next)
 		{
 			if (p->action_code == SHIFT && p->suppressed == 0)
+			{
 				fprintf(verbose_file, "\t%s  shift %d\n",
 						symbol_name[p->symbol], p->number);
+			}
 		}
 	}
 }
@@ -323,7 +359,9 @@ void print_reductions(action *p, int pdefred)
 	}
 
 	if (anyreds == 0)
+	{
 		fprintf(verbose_file, "\t.  error\n");
+	}
 	else
 	{
 		for (; p; p = p->next)
@@ -332,13 +370,17 @@ void print_reductions(action *p, int pdefred)
 			{
 				k = p->number - 2;
 				if (p->suppressed == 0)
+				{
 					fprintf(verbose_file, "\t%s  reduce %d\n",
 							symbol_name[p->symbol], k);
+				}
 			}
 		}
 
 		if (pdefred > 0)
+		{
 			fprintf(verbose_file, "\t.  reduce %d\n", pdefred - 2);
+		}
 	}
 }
 
@@ -357,7 +399,9 @@ void print_gotos(int stateno)
 		k = tto_state[i];
 		as = accessing_symbol[k];
 		if (ISVAR(as))
+		{
 			fprintf(verbose_file, "\t%s  goto %d\n",
 					symbol_name[as], k);
+		}
 	}
 }

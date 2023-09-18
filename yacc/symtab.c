@@ -68,12 +68,16 @@ make_bucket(char *name)
 	assert(name);
 	bp = malloc(sizeof(bucket));
 	if (bp == NULL)
+	{
 		no_space();
+	}
 	bp->link = 0;
 	bp->next = 0;
 	bp->name = strdup(name);
 	if (bp->name == NULL)
+	{
 		no_space();
+	}
 	bp->tag = 0;
 	bp->value = UNDEFINED;
 	bp->index = 0;
@@ -95,7 +99,9 @@ lookup(char *name)
 	while (bp)
 	{
 		if (strcmp(name, bp->name) == 0)
+		{
 			return (bp);
+		}
 		bpp = &bp->link;
 		bp = *bpp;
 	}
@@ -117,7 +123,9 @@ void create_symbol_table(void)
 
 	symbol_table = calloc(TABLE_SIZE, sizeof(bucket *));
 	if (symbol_table == NULL)
+	{
 		no_space();
+	}
 
 	bp = make_bucket("error");
 	bp->index = 1;

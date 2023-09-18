@@ -134,7 +134,9 @@ strlcpy(char *dst, const char *src, size_t dsize)
 		while (--nleft != 0)
 		{
 			if ((*dst++ = *src++) == '\0')
+			{
 				break;
+			}
 		}
 	}
 
@@ -142,7 +144,9 @@ strlcpy(char *dst, const char *src, size_t dsize)
 	if (nleft == 0)
 	{
 		if (dsize != 0)
-			*dst = '\0'; /* NUL-terminate dst */
+		{
+			*dst = '\0';
+		} /* NUL-terminate dst */
 		while (*src++)
 			;
 	}

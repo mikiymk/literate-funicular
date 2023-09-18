@@ -79,7 +79,9 @@ print_EFF(void)
 			}
 
 			if (word & (1 << k))
+			{
 				printf("  %s", symbol_name[start_symbol + j]);
+			}
 		}
 	}
 }
@@ -107,7 +109,9 @@ print_first_derives(void)
 			}
 
 			if (cword & (1 << k))
+			{
 				printf("   %d\n", j);
+			}
 		}
 	}
 

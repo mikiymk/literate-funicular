@@ -153,7 +153,9 @@ void set_maxrhs(void)
 		else
 		{
 			if (length > max)
+			{
 				max = length;
+			}
 			length = 0;
 		}
 	}
@@ -174,7 +176,9 @@ void initialize_LA(void)
 		lookaheads[i] = k;
 		rp = reduction_table[i];
 		if (rp)
+		{
 			k += rp->nreds;
+		}
 	}
 	lookaheads[nstates] = k;
 
@@ -215,10 +219,14 @@ void set_goto_map(void)
 			symbol = accessing_symbol[sp->shift[i]];
 
 			if (ISTOKEN(symbol))
+			{
 				break;
+			}
 
 			if (ngotos == MAXSHORT)
+			{
 				fatal("too many gotos");
+			}
 
 			ngotos++;
 			goto_map[symbol]++;
@@ -250,7 +258,9 @@ void set_goto_map(void)
 			symbol = accessing_symbol[state2];
 
 			if (ISTOKEN(symbol))
+			{
 				break;
+			}
 
 			k = temp_map[symbol]++;
 			from_state[k] = state1;
@@ -276,11 +286,17 @@ int map_goto(int state, int symbol)
 		middle = (low + high) >> 1;
 		s = from_state[middle];
 		if (s == state)
+		{
 			return (middle);
+		}
 		else if (s < state)
+		{
 			low = middle + 1;
+		}
 		else
+		{
 			high = middle - 1;
+		}
 	}
 }
 
@@ -313,7 +329,9 @@ void initialize_F(void)
 			{
 				symbol = accessing_symbol[sp->shift[j]];
 				if (ISVAR(symbol))
+				{
 					break;
+				}
 				SETBIT(rowp, symbol);
 			}
 
@@ -321,7 +339,9 @@ void initialize_F(void)
 			{
 				symbol = accessing_symbol[sp->shift[j]];
 				if (nullable[symbol])
+				{
 					edge[nedges++] = map_goto(stateno, symbol);
+				}
 			}
 
 			if (nedges)
@@ -385,7 +405,9 @@ void build_relations(void)
 				{
 					stateno = sp->shift[j];
 					if (accessing_symbol[stateno] == symbol2)
+					{
 						break;
+					}
 				}
 
 				states[length++] = stateno;
@@ -404,7 +426,9 @@ void build_relations(void)
 					stateno = states[--length];
 					edge[nedges++] = map_goto(stateno, *rp);
 					if (nullable[*rp] && length > 0)
+					{
 						done = 0;
+					}
 				}
 			}
 		}
@@ -442,9 +466,13 @@ void add_lookback_edge(int stateno, int ruleno, int gotono)
 	while (!found && i < k)
 	{
 		if (LAruleno[i] == ruleno)
+		{
 			found = 1;
+		}
 		else
+		{
 			++i;
+		}
 	}
 	assert(found);
 
@@ -555,7 +583,9 @@ void digraph(short **relation)
 	memset(INDEX, 0, ngotos * sizeof(short));
 	for (i = 0; i < ngotos; i++)
 		if (R[i])
+		{
 			traverse(i);
+		}
 
 	free(INDEX);
 	free(VERTICES);
@@ -579,10 +609,14 @@ void traverse(int i)
 		while ((j = *rp++) >= 0)
 		{
 			if (INDEX[j] == 0)
+			{
 				traverse(j);
+			}
 
 			if (INDEX[i] > INDEX[j])
+			{
 				INDEX[i] = INDEX[j];
+			}
 
 			fp1 = base;
 			fp2 = F + j * tokensetsize;
@@ -600,7 +634,9 @@ void traverse(int i)
 			INDEX[j] = infinity;
 
 			if (i == j)
+			{
 				break;
+			}
 
 			fp1 = base;
 			fp2 = F + j * tokensetsize;

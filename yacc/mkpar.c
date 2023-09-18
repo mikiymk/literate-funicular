@@ -75,7 +75,9 @@ void make_parser(void)
 	remove_conflicts();
 	unused_rules();
 	if (SRtotal + RRtotal > 0)
+	{
 		total_conflicts();
+	}
 	defreds();
 }
 
@@ -140,7 +142,9 @@ add_reductions(int stateno, action *actions)
 		for (j = ntokens - 1; j >= 0; j--)
 		{
 			if (BIT(rowp, j))
+			{
 				actions = add_reduce(actions, ruleno, j);
+			}
 		}
 	}
 	return (actions);
@@ -177,9 +181,13 @@ add_reduce(action *actions, int ruleno, int symbol)
 	temp->assoc = rassoc[ruleno];
 
 	if (prev)
+	{
 		prev->next = temp;
+	}
 	else
+	{
 		actions = temp;
+	}
 
 	return (actions);
 }
@@ -197,7 +205,9 @@ void find_final_state(void)
 	{
 		final_state = tto_state[i];
 		if (accessing_symbol[final_state] == goal)
+		{
 			break;
+		}
 	}
 }
 
@@ -208,29 +218,39 @@ void unused_rules(void)
 
 	rules_used = calloc(nrules, sizeof(short));
 	if (rules_used == NULL)
+	{
 		no_space();
+	}
 
 	for (i = 0; i < nstates; ++i)
 	{
 		for (p = parser[i]; p; p = p->next)
 		{
 			if (p->action_code == REDUCE && p->suppressed == 0)
+			{
 				rules_used[p->number] = 1;
+			}
 		}
 	}
 
 	nunused = 0;
 	for (i = 3; i < nrules; ++i)
 		if (!rules_used[i])
+		{
 			++nunused;
+		}
 
 	if (nunused)
 	{
 		if (nunused == 1)
+		{
 			fprintf(stderr, "%s: 1 rule never reduced\n", __progname);
+		}
 		else
+		{
 			fprintf(stderr, "%s: %d rules never reduced\n", __progname,
 					nunused);
+		}
 	}
 }
 
@@ -314,18 +334,26 @@ void total_conflicts(void)
 	if ((SRtotal != SRexpect) || RRtotal)
 	{
 		if (SRtotal == 1)
+		{
 			fprintf(stderr, "%s: %s finds 1 shift/reduce conflict\n",
 					input_file_name, __progname);
+		}
 		else if (SRtotal > 1)
+		{
 			fprintf(stderr, "%s: %s finds %d shift/reduce conflicts\n",
 					input_file_name, __progname, SRtotal);
+		}
 	}
 	if (RRtotal == 1)
+	{
 		fprintf(stderr, "%s: %s finds 1 reduce/reduce conflict\n",
 				input_file_name, __progname);
+	}
 	else if (RRtotal > 1)
+	{
 		fprintf(stderr, "%s: %s finds %d reduce/reduce conflicts\n",
 				input_file_name, __progname, RRtotal);
+	}
 }
 
 short sole_reduction(int stateno)
@@ -339,19 +367,27 @@ short sole_reduction(int stateno)
 	for (p = parser[stateno]; p; p = p->next)
 	{
 		if (p->action_code == SHIFT && p->suppressed == 0)
+		{
 			return (0);
+		}
 		else if (p->action_code == REDUCE && p->suppressed == 0)
 		{
 			if (ruleno > 0 && p->number != ruleno)
+			{
 				return (0);
+			}
 			if (p->symbol != 1)
+			{
 				++count;
+			}
 			ruleno = p->number;
 		}
 	}
 
 	if (count == 0)
+	{
 		return (0);
+	}
 	return (ruleno);
 }
 

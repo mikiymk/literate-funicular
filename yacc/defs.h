@@ -134,6 +134,9 @@
 
 /*  the structure of a symbol table entry  */
 
+/**
+ * シンボルテーブルの構造体
+ */
 typedef struct bucket bucket;
 struct bucket
 {

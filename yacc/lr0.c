@@ -106,7 +106,9 @@ void allocate_itemsets(void)
 		kernel_base[i] = kernel_items + count;
 		count += symbol_count[i];
 		if (max < symbol_count[i])
+		{
 			max = symbol_count[i];
+		}
 	}
 
 	shift_symbol = symbol_count;
@@ -158,6 +160,9 @@ void free_storage(void)
 	free(state_set);
 }
 
+/**
+ * 状態を作成する
+ */
 void generate_states(void)
 {
 	allocate_storage();
@@ -174,7 +179,9 @@ void generate_states(void)
 		append_states();
 
 		if (nshifts > 0)
+		{
 			save_shifts();
+		}
 
 		this_state = this_state->next;
 	}
@@ -214,7 +221,9 @@ short get_state(int symbol)
 				while (found && isp1 < iend)
 				{
 					if (*isp1++ != *isp2++)
+					{
 						found = 0;
+					}
 				}
 			}
 			if (!found)
@@ -251,7 +260,9 @@ void initialize_states(void)
 
 	p = malloc(sizeof(core) + i * sizeof(short));
 	if (p == NULL)
+	{
 		no_space();
+	}
 
 	p->next = 0;
 	p->link = 0;
@@ -308,7 +319,9 @@ new_state(int symbol)
 #endif
 
 	if (nstates >= MAXSHORT)
+	{
 		fatal("too many states");
+	}
 
 	isp1 = kernel_base[symbol];
 	iend = kernel_end[symbol];
@@ -469,7 +482,9 @@ void set_nullable(void)
 
 	nullable = calloc(1, nsyms);
 	if (nullable == NULL)
+	{
 		no_space();
+	}
 
 	done = 0;
 	while (!done)
@@ -481,7 +496,9 @@ void set_nullable(void)
 			while ((j = ritem[i]) >= 0)
 			{
 				if (!nullable[j])
+				{
 					empty = 0;
+				}
 				++i;
 			}
 			if (empty)
@@ -500,9 +517,13 @@ void set_nullable(void)
 	for (i = 0; i < nsyms; i++)
 	{
 		if (nullable[i])
+		{
 			printf("%s is nullable\n", symbol_name[i]);
+		}
 		else
+		{
 			printf("%s is not nullable\n", symbol_name[i]);
+		}
 	}
 #endif
 }
