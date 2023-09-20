@@ -1,10 +1,16 @@
 const std = @import("std");
-const getopt = @import("./getopt.zig");
+const get_args = @import("./args/get_args.zig");
 
 const defs = @import("./defs.zig");
 const error_zig = @import("./error.zig");
 
 const Allocator = std.mem.Allocator;
+
+test {
+    std.testing.refAllDeclsRecursive(@This());
+}
+
+const String = []const u8;
 
 // #include <sys/types.h>
 // #include <fcntl.h>
@@ -87,51 +93,9 @@ var input_file: std.fs.File = undefined;
 // void create_file_names(void);
 // void open_files(void);
 
-// void
-// usage(void)
-// {
-// 	fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", __progname);
-// 	exit(1);
-// }
-pub fn usage(arg0: [:0]const u8) error{Usage} {
+fn usage(arg0: []const u8) void {
     const stderr = std.io.getStdErr();
     stderr.writer().print("usage: {s} [-dlrtv] [-b file_prefix] [-o output_file] [-p symbol_prefix] file\n", .{arg0}) catch unreachable;
-
-    return error.Usage;
-}
-
-pub fn getargs(argv: [][:0]const u8) !void {
-    var iter = getopt.getopt(argv, "b:dlo:p:rtv");
-    progname = argv[0];
-
-    while (iter.next() catch return usage(progname)) |ch| {
-        switch (ch.opt) {
-            'b' => file_prefix = ch.arg orelse continue,
-            'd' => dflag = true,
-            'l' => lflag = true,
-            'o' => {
-                output_file_name = ch.arg orelse continue;
-                explicit_file_name = true;
-            },
-            'p' => symbol_prefix = ch.arg orelse continue,
-            'r' => rflag = true,
-            't' => tflag = true,
-            'v' => vflag = true,
-            else => return usage(progname),
-        }
-    }
-
-    var my_argv = argv[iter.optind..];
-
-    if (my_argv.len != 1) {
-        return usage(progname);
-    }
-
-    if (std.mem.order(u8, my_argv[0], "-") == .eq) {
-        input_file = std.io.getStdIn();
-    } else {
-        input_file_name = my_argv[0];
-    }
 }
 
 // void *
@@ -148,113 +112,121 @@ pub fn getargs(argv: [][:0]const u8) !void {
 // 	return (v);
 // }
 
-pub fn create_file_names(allocator: Allocator) !void {
-    if (output_file_name == null) {
-        // asprintf(&output_file_name, "%s%s", file_prefix, OUTPUT_SUFFIX) == -1
-        output_file_name = std.fmt.allocPrint(
+const FileNames = struct {
+    output_file_name: []const u8,
+    code_file_name: []const u8,
+    defines_file_name: ?[]const u8,
+    verbose_file_name: ?[]const u8,
+};
+
+pub fn create_file_names(allocator: Allocator, args: *get_args.Args) !FileNames {
+    var local_file_prefix = args.file_prefix orelse "y";
+
+    var local_output_file_name: String = if (args.output_file) |output_file|
+        output_file
+    else
+        std.fmt.allocPrint(
             allocator,
             "{s}{s}",
-            .{ file_prefix, defs.OUTPUT_SUFFIX },
+            .{ local_file_prefix, defs.OUTPUT_SUFFIX },
         ) catch {
             try error_zig.no_space();
         };
-    }
 
-    if (rflag) {
-        // asprintf(&code_file_name, "%s%s", file_prefix, CODE_SUFFIX) == -1
-        code_file_name = std.fmt.allocPrint(
+    var local_code_file_name: String = if (args.separate_code)
+        std.fmt.allocPrint(
             allocator,
             "{s}{s}",
             .{ file_prefix, defs.CODE_SUFFIX },
         ) catch {
             try error_zig.no_space();
-        };
-    } else {
-        code_file_name = output_file_name.?;
-    }
+        }
+    else
+        local_output_file_name;
 
-    if (dflag) {
-        if (explicit_file_name) {
-            // defines_file_name = strdup(output_file_name);
-            // if (defines_file_name == 0)
-            //     no_space();
-            defines_file_name = std.fmt.allocPrint(
-                allocator,
-                "{?s}",
-                .{output_file_name},
-            ) catch {
-                try error_zig.no_space();
-            };
-
+    var local_defines_file_name: ?[]const u8 = null;
+    if (args.declare_file) {
+        if (args.output_file != null) {
             // does the output_file_name have a known suffix
             // (suffix = strrchr(output_file_name, '.')) != 0
-            var result: struct { file_name: []const u8, suffix: []const u8 } = blk: {
-                var i = output_file_name.?.len;
+            var i = blk: {
+                var i = local_output_file_name.len;
                 while (0 < i) {
                     i -= 1;
-                    const char = output_file_name.?[i];
+                    const char = local_output_file_name[i];
                     if (char == '.') {
-                        break :blk .{
-                            .file_name = output_file_name.?[0..i],
-                            .suffix = output_file_name.?[i .. output_file_name.?.len - 1],
-                        };
+                        break :blk i;
                     }
                 }
-                break :blk .{
-                    .file_name = output_file_name.?,
-                    .suffix = "",
-                };
+                break :blk local_output_file_name.len;
             };
 
-            std.debug.print("file_name={s} suffix={s}", .{ result.file_name, result.suffix });
-            var suffix: ?[]const u8 = result.suffix;
+            var local_output_file_name_without_extension = local_output_file_name[0..i];
+            var local_output_file_extension = local_output_file_name[i..local_output_file_name.len];
 
-            if (if (suffix) |suffix_|
-                (!std.mem.eql(u8, suffix_, ".c") or // good, old-fashioned C
-                    !std.mem.eql(u8, suffix_, ".C") or // C++, or C on Windows
-                    !std.mem.eql(u8, suffix_, ".cc") or // C++
-                    !std.mem.eql(u8, suffix_, ".cxx") or // C++
-                    !std.mem.eql(u8, suffix_, ".cpp"))
-            else
-                false)
+            if ((std.mem.eql(u8, local_output_file_extension, ".c") or // good, old-fashioned C
+                std.mem.eql(u8, local_output_file_extension, ".C") or // C++, or C on Windows
+                std.mem.eql(u8, local_output_file_extension, ".cc") or // C++
+                std.mem.eql(u8, local_output_file_extension, ".cxx") or // C++
+                std.mem.eql(u8, local_output_file_extension, ".cpp")))
             { // C++ (Windows)
-                const defines_file_name_len = output_file_name.?.len - suffix.?.len + 2;
+                const name_len = local_output_file_name_without_extension.len;
+                var name = allocator.alloc(u8, name_len + 2) catch {
+                    try error_zig.no_space();
+                };
+                @memcpy(name[0..name_len], local_output_file_name_without_extension);
+                name[name_len] = '.';
+                name[name_len + 1] = 'h';
 
-                var name = try allocator.alloc(u8, defines_file_name_len);
-                @memcpy(name, output_file_name.?[0 .. output_file_name.?.len - suffix.?.len + 1]);
-                name[output_file_name.?.len - suffix.?.len + 1] = 'h';
-                name[output_file_name.?.len - suffix.?.len + 2] = '\x00';
-
-                defines_file_name = name;
+                local_defines_file_name = name;
             } else {
                 const stderr = std.io.getStdErr().writer();
                 try stderr.print(
                     "{s}: suffix of output file name {?s} not recognized, no -d file generated.\n",
-                    .{ progname, output_file_name },
+                    .{ args.program_name, local_output_file_name },
                 );
 
-                dflag = false;
-                allocator.free(defines_file_name);
-                defines_file_name = "";
+                args.declare_file = false;
+                local_defines_file_name = "";
             }
         } else {
             // asprintf(&defines_file_name, "%s%s", file_prefix, DEFINES_SUFFIX)
-            defines_file_name = std.fmt.allocPrint(
+            local_defines_file_name = std.fmt.allocPrint(
                 allocator,
                 "{s}{s}",
-                .{ file_prefix, defs.DEFINES_SUFFIX },
+                .{ local_file_prefix, defs.DEFINES_SUFFIX },
             ) catch {
                 try error_zig.no_space();
             };
         }
     }
 
-    if (vflag) {
-        // asprintf(&verbose_file_name, "%s%s", file_prefix, VERBOSE_SUFFIX) == -1
-        verbose_file_name = std.fmt.allocPrint(allocator, "{s}{s}", .{ file_prefix, defs.VERBOSE_SUFFIX }) catch {
+    var local_verbose_file_name: ?[]const u8 = if (args.verbose)
+        std.fmt.allocPrint(allocator, "{s}{s}", .{ file_prefix, defs.VERBOSE_SUFFIX }) catch {
             try error_zig.no_space();
-        };
+        }
+    else
+        null;
+
+    std.debug.print("output file  = \"{s}\"\n", .{local_output_file_name});
+    std.debug.print("code file    = \"{s}\"\n", .{local_code_file_name});
+    if (local_defines_file_name) |name| {
+        std.debug.print("defines file = \"{?s}\"\n", .{name});
+    } else {
+        std.debug.print("defines file = null\n", .{});
     }
+    if (local_verbose_file_name) |name| {
+        std.debug.print("verbose file = \"{?s}\"\n", .{name});
+    } else {
+        std.debug.print("verbose file = null\n", .{});
+    }
+
+    return .{
+        .output_file_name = local_output_file_name,
+        .code_file_name = local_code_file_name,
+        .defines_file_name = local_defines_file_name,
+        .verbose_file_name = local_verbose_file_name,
+    };
 }
 
 // FILE *
@@ -268,8 +240,8 @@ pub fn create_file_names(allocator: Allocator) !void {
 // 	return f;
 // }
 
-pub fn open_files(allocator: Allocator) !void {
-    try create_file_names(allocator);
+pub fn open_files(allocator: Allocator, args: *get_args.Args) !void {
+    _ = try create_file_names(allocator, args);
 
     // if (input_file == NULL) {
     //     input_file = fopen(input_file_name, "r");
@@ -305,11 +277,17 @@ pub fn open_files(allocator: Allocator) !void {
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var argv: [][:0]const u8 = try std.process.argsAlloc(allocator);
-    try getargs(argv);
-    std.process.argsFree(allocator, argv);
+    var argv: [][:0]u8 = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, argv);
+    var args = get_args.getargs(argv) catch |err| switch (err) {
+        error.Usage => {
+            usage(argv[0]);
+            return err;
+        },
+        else => return err,
+    };
 
-    try open_files(allocator);
+    try open_files(allocator, &args);
     // reader();
     // lr0();
     // lalr();
