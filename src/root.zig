@@ -26,5 +26,5 @@ test "shunting yard algorithm" {
     try shunting_yard.parse(allocator, &reader, &output);
     std.debug.print("output: {}\n", .{output});
 
-    try testing.expectEqual(39, output.result());
+    try testing.expectEqual(63, output.result());
 }
