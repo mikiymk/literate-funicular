@@ -15,16 +15,6 @@ test "basic add functionality" {
 
 pub const shunting_yard = @import("./shunting_yard.zig");
 
-test "shunting yard algorithm" {
-    const source = "1 + 2 * ( 3 + 4 ) - double ( 1 - 5 ^ 2 )";
-    const allocator = testing.allocator;
-
-    var reader = shunting_yard.TokenReader.init(source);
-    var output = shunting_yard.OutputQueue.empty;
-    defer output.deinit(allocator);
-
-    try shunting_yard.parse(allocator, &reader, &output);
-    std.debug.print("output: {}\n", .{output});
-
-    try testing.expectEqual(63, output.result());
+test {
+    _ = shunting_yard;
 }
