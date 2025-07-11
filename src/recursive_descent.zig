@@ -14,12 +14,16 @@ const ParseTree = union(enum) {
     num: Token,
     operator: struct { left: *ParseTree, right: *ParseTree, op: Token },
 
-    fn initFromExpression2(allocator: Allocator, factor: ParseTree, expression2: Expression2) ParseTree {
-        return switch (expression2) {
+    fn initFromExpr2(allocator: Allocator, factor: ParseTree, expr2: Expr2) ParseTree {
+        return switch (expr2) {
             .empty => factor,
             .operator => |op| {
-                const operator, const tree, const expression2_child = op;
-                return initFromExpression2(allocator, initOperator(allocator, factor, tree, operator), expression2_child.*);
+                const operator, const tree, const expr2_child = op;
+                return initFromExpr2(
+                    allocator,
+                    initOperator(allocator, factor, tree, operator),
+                    expr2_child.*,
+                );
             },
         };
     }
@@ -29,7 +33,11 @@ const ParseTree = union(enum) {
             .empty => factor,
             .operator => |op| {
                 const operator, const tree, const term2_child = op;
-                return initFromTerm2(allocator, initOperator(allocator, factor, tree, operator), term2_child.*);
+                return initFromTerm2(
+                    allocator,
+                    initOperator(allocator, factor, tree, operator),
+                    term2_child.*,
+                );
             },
         };
     }
@@ -70,47 +78,48 @@ const ParseTree = union(enum) {
 pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
     var input = TokenReader.init(source);
 
-    debug("parsing start\n", .{});
-    const tree = try parseExpression(allocator, &input);
-    debug("parsing end\n", .{});
+    debug.begin("parsing");
+    const tree = try parseExpr(allocator, &input);
+    debug.end("parsing");
 
     return tree;
 }
 
-// Expression  -> Term Expression'
-// Expression' -> + Term Expression' | - Term Expression' | empty
-// Term        -> Factor Term'
-// Term'       -> * Factor Term' | / Factor Term' | empty
-// Factor      -> ( Expression ) | num
+// Expr   -> Term Expr'
+// Expr'  -> + Term Expr' | - Term Expr' | empty
+// Term   -> Factor Term'
+// Term'  -> * Factor Term' | / Factor Term' | empty
+// Factor -> ( Expr ) | num
 
-fn parseExpression(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug("expression start\n", .{});
+fn parseExpr(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+    debug.begin("expr");
     const term = try parseTerm(allocator, input);
-    var expression2 = try parseExpression2(allocator, input);
-    defer expression2.deinit(allocator);
-    const tree = ParseTree.initFromExpression2(allocator, term, expression2);
-    debug("expression end: {}\n", .{tree});
+    var expr2 = try parseExpr2(allocator, input);
+    defer expr2.deinit(allocator);
+    const tree = ParseTree.initFromExpr2(allocator, term, expr2);
+    debug.print("tree: {}\n", .{tree});
+    debug.end("expr");
     return tree;
 }
 
-const Expression2Operator = struct { Token, ParseTree, *Expression2 };
-const Expression2 = union(enum) {
-    operator: Expression2Operator,
+const Expr2Operator = struct { Token, ParseTree, *Expr2 };
+const Expr2 = union(enum) {
+    operator: Expr2Operator,
     empty: void,
 
-    fn initOperator(allocator: Allocator, token: Token, factor: ParseTree, expression2: Expression2) ParseError!Expression2 {
-        const expression2_ptr = try allocator.create(Expression2);
-        expression2_ptr.* = expression2;
-        return .{ .operator = .{ token, factor, expression2_ptr } };
+    fn initOperator(allocator: Allocator, token: Token, factor: ParseTree, expr2: Expr2) ParseError!Expr2 {
+        const expr2_ptr = try allocator.create(Expr2);
+        expr2_ptr.* = expr2;
+        return .{ .operator = .{ token, factor, expr2_ptr } };
     }
 
-    fn deinit(self: *Expression2, allocator: Allocator) void {
+    fn deinit(self: *Expr2, allocator: Allocator) void {
         switch (self.*) {
             .empty => {},
             .operator => |op| {
-                _, _, const expression2 = op;
-                expression2.deinit(allocator);
-                allocator.destroy(expression2);
+                _, _, const expr2 = op;
+                expr2.deinit(allocator);
+                allocator.destroy(expr2);
             },
         }
     }
@@ -119,35 +128,37 @@ const Expression2 = union(enum) {
         switch (self) {
             .empty => try writer.print("(e)", .{}),
             .operator => |op| {
-                const token, const factor, const expression2 = op;
-                try writer.print("({} {} {})", .{ token, factor, expression2 });
+                const token, const factor, const expr2 = op;
+                try writer.print("({} {} {})", .{ token, factor, expr2 });
             },
         }
     }
 };
 
-fn parseExpression2(allocator: Allocator, input: *TokenReader) ParseError!Expression2 {
-    debug("expression' start\n", .{});
-    var tree: Expression2 = .empty;
+fn parseExpr2(allocator: Allocator, input: *TokenReader) ParseError!Expr2 {
+    debug.begin("expr'");
+    var tree: Expr2 = .empty;
     if (input.peek()) |token| {
         if (token.is("+") or token.is("-")) {
             _ = input.next();
             const term = try parseTerm(allocator, input);
-            const expression2 = try parseExpression2(allocator, input);
-            tree = try Expression2.initOperator(allocator, token, term, expression2);
+            const expr2 = try parseExpr2(allocator, input);
+            tree = try Expr2.initOperator(allocator, token, term, expr2);
         }
     }
-    debug("expression' end: {}\n", .{tree});
+    debug.print("tree: {}\n", .{tree});
+    debug.end("expr'");
     return tree;
 }
 
 fn parseTerm(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug("term start\n", .{});
+    debug.begin("term");
     const factor = try parseFactor(allocator, input);
     var term2 = try parseTerm2(allocator, input);
     defer term2.deinit(allocator);
     const tree = ParseTree.initFromTerm2(allocator, factor, term2);
-    debug("term end: {}\n", .{tree});
+    debug.print("tree: {}\n", .{tree});
+    debug.end("term");
     return tree;
 }
 
@@ -185,7 +196,7 @@ const Term2 = union(enum) {
 };
 
 fn parseTerm2(allocator: Allocator, input: *TokenReader) ParseError!Term2 {
-    debug("term' start\n", .{});
+    debug.begin("term'");
     var tree: Term2 = .empty;
     if (input.peek()) |token| {
         if (token.is("*") or token.is("/")) {
@@ -195,12 +206,13 @@ fn parseTerm2(allocator: Allocator, input: *TokenReader) ParseError!Term2 {
             tree = try Term2.initOperator(allocator, token, factor, term2);
         }
     }
-    debug("term' end: {}\n", .{tree});
+    debug.print("tree: {}\n", .{tree});
+    debug.end("term'");
     return tree;
 }
 
 fn parseFactor(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug("factor start\n", .{});
+    debug.begin("factor");
     const token = input.peek() orelse return error.InvalidSyntax;
     var tree: ParseTree = undefined;
     switch (token.tokenType()) {
@@ -210,12 +222,13 @@ fn parseFactor(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
         },
         .parenthesis => {
             try expect(input, "(");
-            tree = try parseExpression(allocator, input);
+            tree = try parseExpr(allocator, input);
             try expect(input, ")");
         },
         else => return error.InvalidSyntax,
     }
-    debug("factor end: {}\n", .{tree});
+    debug.print("tree: {}\n", .{tree});
+    debug.end("factor");
     return tree;
 }
 
@@ -226,7 +239,7 @@ fn expect(input: *TokenReader, token_string: []const u8) ParseError!void {
 
 test "recursive descent parsing" {
     const allocator = std.testing.allocator;
-    utils.debug_enabled = true;
+    utils.debug.enabled = false;
 
     {
         const source = "1 + 2 * ( 3 - 4 )";

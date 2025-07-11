@@ -1,13 +1,35 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub var debug_enabled = false;
-/// デバッグ出力をオンにした場合のみ、出力する。
-pub fn debug(comptime fmt: []const u8, args: anytype) void {
-    if (debug_enabled) {
-        std.debug.print(fmt, args);
+pub const debug = struct {
+    pub var enabled = false;
+    var indent_count: u8 = 0;
+
+    /// デバッグ出力をオンにした場合のみ、出力する。
+    pub fn print(comptime fmt: []const u8, args: anytype) void {
+        if (enabled) {
+            for (0..indent_count) |_| {
+                std.debug.print("  ", .{});
+            }
+
+            std.debug.print(fmt, args);
+        }
     }
-}
+
+    pub fn begin(name: []const u8) void {
+        if (enabled) {
+            print("begin {s}\n", .{name});
+            indent_count += 1;
+        }
+    }
+
+    pub fn end(name: []const u8) void {
+        if (enabled) {
+            indent_count -= 1;
+            print("end {s}\n", .{name});
+        }
+    }
+};
 
 fn ArrayFormat(T: type) type {
     return struct {
@@ -124,7 +146,7 @@ pub const OutputQueue = struct {
     }
 
     pub fn push(self: *OutputQueue, allocator: Allocator, token: Token) Allocator.Error!void {
-        debug("  output: {}\n", .{token});
+        debug.print("output: {}\n", .{token});
         try self.array.append(allocator, token);
     }
 
@@ -141,13 +163,13 @@ pub const Stack = struct {
     }
 
     pub fn push(self: *Stack, allocator: Allocator, token: Token) !void {
-        debug("  stack push: {} + {}\n", .{ self, token });
+        debug.print("stack push: {} + {}\n", .{ self, token });
         try self.array.append(allocator, token);
     }
 
     pub fn pop(self: *Stack) ?Token {
         const token = self.array.pop();
-        debug("  stack pop: {} - {?}\n", .{ self, token });
+        debug.print("stack pop: {} - {?}\n", .{ self, token });
         return token;
     }
 

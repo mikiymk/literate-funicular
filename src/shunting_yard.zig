@@ -14,10 +14,11 @@ pub fn parse(allocator: Allocator, source: []const u8) !OutputQueue {
     var stack: Stack = .{};
     defer stack.deinit(allocator);
 
-    debug("start parsing\n", .{});
+    debug.begin("parsing");
 
     while (input.next()) |o1| {
-        debug("read token: {}\n", .{o1});
+        debug.begin("process");
+        debug.print("read token: {}\n", .{o1});
 
         switch (o1.tokenType()) {
             .number => try output.push(allocator, o1),
@@ -48,45 +49,47 @@ pub fn parse(allocator: Allocator, source: []const u8) !OutputQueue {
             .parenthesis => {
                 if (o1.is("(")) {
                     try stack.push(allocator, o1);
-                    continue;
-                }
-                // )
-                while (true) {
-                    const stack_top = stack.get() orelse return error.InvalidSyntax;
-                    if (!stack_top.is("(")) {
-                        _ = stack.pop();
-                        try output.push(allocator, stack_top);
-                    } else {
-                        _ = stack.pop();
-                        break;
+                } else {
+                    // )
+                    while (true) {
+                        const stack_top = stack.get() orelse return error.InvalidSyntax;
+                        if (!stack_top.is("(")) {
+                            _ = stack.pop();
+                            try output.push(allocator, stack_top);
+                        } else {
+                            _ = stack.pop();
+                            break;
+                        }
                     }
-                }
 
-                if (stack.get()) |stack_top| {
-                    if (stack_top.tokenType() == .function) {
-                        _ = stack.pop();
-                        try output.push(allocator, stack_top);
+                    if (stack.get()) |stack_top| {
+                        if (stack_top.tokenType() == .function) {
+                            _ = stack.pop();
+                            try output.push(allocator, stack_top);
+                        }
                     }
                 }
             },
         }
+
+        debug.end("process");
     }
 
-    debug("read token: none\n", .{});
+    debug.print("read token: none\n", .{});
 
     while (stack.pop()) |token| {
         if (token.is("(")) return error.InvalidSyntax;
         try output.push(allocator, token);
     }
 
-    debug("end parsing\n", .{});
+    debug.end("process");
 
     return output;
 }
 
 test "shunting yard algorithm" {
     const allocator = std.testing.allocator;
-    utils.debug_enabled = false;
+    utils.debug.enabled = false;
 
     {
         const source = "1 + 2 * ( 3 - 4 )";
