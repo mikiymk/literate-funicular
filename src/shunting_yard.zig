@@ -2,16 +2,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const utils = @import("./utils.zig");
+const debug = utils.debug;
 const OutputQueue = utils.OutputQueue;
 const Token = utils.Token;
 const TokenReader = utils.TokenReader;
-const Stack = utils.Stack;
-const debug = utils.debug;
 
 pub fn parse(allocator: Allocator, source: []const u8) !OutputQueue {
     var input = TokenReader.init(source);
     var output = OutputQueue{};
-    var stack: Stack = .{};
+    var stack: utils.Stack(Token) = .empty;
     defer stack.deinit(allocator);
 
     debug.begin("parsing");

@@ -15,8 +15,10 @@ test "basic add functionality" {
 
 pub const shunting_yard = @import("./shunting_yard.zig");
 pub const recursive_descent = @import("./recursive_descent.zig");
+pub const recursive_descent_loop = @import("./recursive_descent_loop.zig");
 
 test {
     _ = shunting_yard;
     _ = recursive_descent;
+    _ = recursive_descent_loop;
 }
