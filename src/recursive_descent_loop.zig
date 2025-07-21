@@ -1,12 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const utils = @import("./utils.zig");
-const OutputQueue = utils.OutputQueue;
-const Token = utils.Token;
-const TokenReader = utils.TokenReader;
+const utils = @import("./util.zig");
+
 const Stack = utils.Stack;
 const debug = utils.debug;
+
+const OutputQueue = utils.Language1.OutputQueue;
+const Token = utils.Language1.Token;
+const TokenReader = utils.Language1.TokenReader;
 
 const ParseError = error{InvalidSyntax} || Allocator.Error;
 
