@@ -18,7 +18,7 @@ pub fn print(comptime fmt: []const u8, args: anytype) void {
 
 pub fn begin(name: []const u8) void {
     if (enabled) {
-        print("begin {s}\n", .{name});
+        print("{s}\n", .{name});
         indent_tags[indent_count] = name;
         indent_count += 1;
     }
@@ -27,10 +27,10 @@ pub fn begin(name: []const u8) void {
 pub fn end(name: []const u8) void {
     if (enabled) {
         while (indent_count > 0) {
-            const indent_name = indent_tags[indent_count];
+            const indent_name = indent_tags[indent_count - 1];
 
             indent_count -= 1;
-            print("end {s}\n", .{indent_name});
+            print("{s}\n", .{indent_name});
             if (std.mem.eql(u8, indent_name, name)) break;
         }
     }
