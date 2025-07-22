@@ -16,13 +16,17 @@
 
 ```bnf
 <expr> ::= <add-expr>
-         | <expr> + <add-expr>
 
 <add-expr> ::= <mul-expr>
-             | <add-expr> * <mul-expr>
+             | <add-expr> + <mul-expr>
+             | <add-expr> - <mul-expr>
 
-<mul-expr> ::= <prim-expr>
-             | <mul-expr> * <prim-expr>
+<mul-expr> ::= <pow-expr>
+             | <mul-expr> * <pow-expr>
+             | <mul-expr> / <pow-expr>
+
+<pow-expr> ::= <prim-expr>
+             | <prim-expr> ^ <pow-expr>
 
 <prim-expr> ::= <constant>
               | ( <expr> )

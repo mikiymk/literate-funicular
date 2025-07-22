@@ -9,78 +9,55 @@ const debug = utils.debug;
 const OutputQueue = utils.Language1.OutputQueue;
 const Token = utils.Language1.Token;
 const TokenReader = utils.Language1.TokenReader;
+const ParseTree = utils.Language1.ParseTree;
+const Operator = utils.Language1.Operator;
 
 const ParseError = error{InvalidSyntax} || Allocator.Error;
 
-const ParseTree = union(enum) {
-    num: Token,
-    operator: struct { left: *ParseTree, right: *ParseTree, op: Token },
+/// 左結合の木の一部
+const PartialTreeLeft = union(enum) {
+    const OperatorStruct = struct {
+        operator: Operator,
+        tree: ParseTree,
+        child: *PartialTreeLeft,
+    };
 
-    fn initOperator(allocator: Allocator, left: ParseTree, right: ParseTree, op: Token) ParseError!ParseTree {
-        const left_ptr = try allocator.create(ParseTree);
-        const right_ptr = try allocator.create(ParseTree);
-        left_ptr.* = left;
-        right_ptr.* = right;
+    operator: OperatorStruct,
+    empty: void,
 
+    fn initOperator(a: Allocator, operator: Token, tree: ParseTree, child: PartialTreeLeft) ParseError!PartialTreeLeft {
+        const child_ptr = try a.create(PartialTreeLeft);
+        child_ptr.* = child;
         return .{ .operator = .{
-            .left = left_ptr,
-            .right = right_ptr,
-            .op = op,
+            .operator = operator.toOperator(),
+            .tree = tree,
+            .child = child_ptr,
         } };
     }
 
-    pub fn deinit(self: *ParseTree, allocator: Allocator) void {
-        switch (self.*) {
-            .num => {},
-            .operator => |op| {
-                op.left.deinit(allocator);
-                op.right.deinit(allocator);
-                allocator.destroy(op.left);
-                allocator.destroy(op.right);
-            },
-        }
-    }
-
-    pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        switch (self) {
-            .num => |num| try writer.print("{}", .{num}),
-            .operator => |op| try writer.print("({} {} {})", .{ op.left, op.op, op.right }),
-        }
-    }
-};
-
-const Expr2 = union(enum) {
-    const Operator = struct { Token, ParseTree, *Expr2 };
-
-    operator: Operator,
-    empty: void,
-
-    fn initOperator(allocator: Allocator, token: Token, factor: ParseTree, expr2: Expr2) ParseError!Expr2 {
-        const expr2_ptr = try allocator.create(Expr2);
-        expr2_ptr.* = expr2;
-        return .{ .operator = .{ token, factor, expr2_ptr } };
-    }
-
-    fn deinit(self: *Expr2, allocator: Allocator) void {
+    fn deinit(self: *PartialTreeLeft, a: Allocator) void {
         switch (self.*) {
             .empty => {},
             .operator => |op| {
-                _, _, const expr2 = op;
-                expr2.deinit(allocator);
-                allocator.destroy(expr2);
+                op.child.deinit(a);
+                a.destroy(op.child);
             },
         }
     }
 
-    fn toTree(allocator: Allocator, factor: ParseTree, expr2: Expr2) ParseError!ParseTree {
-        return switch (expr2) {
-            .empty => factor,
+    fn toTree(allocator: Allocator, tree: ParseTree, partial: PartialTreeLeft) ParseError!ParseTree {
+        return switch (partial) {
+            .empty => tree,
             .operator => |op| {
-                const operator, const tree, const expr2_child = op;
                 return toTree(
                     allocator,
-                    try ParseTree.initOperator(allocator, factor, tree, operator),
-                    expr2_child.*,
+                    try ParseTree.initOperator(
+                        allocator,
+                        tree,
+                        op.tree,
+                        op.operator,
+                    ),
+                    op.child.*,
                 );
             },
         };
@@ -90,45 +67,38 @@ const Expr2 = union(enum) {
         switch (self) {
             .empty => try writer.print("(e)", .{}),
             .operator => |op| {
-                const token, const factor, const expr2 = op;
-                try writer.print("({} {} {})", .{ token, factor, expr2 });
+                try writer.print("({} {} {})", .{ op.operator, op.tree, op.child });
             },
         }
     }
 };
 
-const Term2 = union(enum) {
-    const Operator = struct { Token, ParseTree, *Term2 };
+/// 右結合の木の一部
+const PartialTreeRight = union(enum) {
+    const OperatorStruct = struct {
+        operator: Operator,
+        tree: ParseTree,
+    };
 
-    operator: Operator,
+    operator: OperatorStruct,
     empty: void,
 
-    fn initOperator(allocator: Allocator, token: Token, factor: ParseTree, term2: Term2) ParseError!Term2 {
-        const term2_ptr = try allocator.create(Term2);
-        term2_ptr.* = term2;
-        return .{ .operator = .{ token, factor, term2_ptr } };
+    fn initOperator(a: Allocator, operator: Token, tree: ParseTree, child: PartialTreeRight) ParseError!PartialTreeRight {
+        return .{ .operator = .{
+            .operator = operator.toOperator(),
+            .tree = try toTree(a, tree, child),
+        } };
     }
 
-    fn deinit(self: *Term2, allocator: Allocator) void {
-        switch (self.*) {
-            .empty => {},
+    fn toTree(allocator: Allocator, tree: ParseTree, partial: PartialTreeRight) ParseError!ParseTree {
+        return switch (partial) {
+            .empty => tree,
             .operator => |op| {
-                _, _, const term2 = op;
-                term2.deinit(allocator);
-                allocator.destroy(term2);
-            },
-        }
-    }
-
-    fn toTree(allocator: Allocator, factor: ParseTree, term2: Term2) ParseError!ParseTree {
-        return switch (term2) {
-            .empty => factor,
-            .operator => |op| {
-                const operator, const tree, const term2_child = op;
-                return toTree(
+                return ParseTree.initOperator(
                     allocator,
-                    try ParseTree.initOperator(allocator, factor, tree, operator),
-                    term2_child.*,
+                    tree,
+                    op.tree,
+                    op.operator,
                 );
             },
         };
@@ -138,8 +108,7 @@ const Term2 = union(enum) {
         switch (self) {
             .empty => try writer.print("(e)", .{}),
             .operator => |op| {
-                const token, const factor, const term2 = op;
-                try writer.print("({} {} {})", .{ token, factor, term2 });
+                try writer.print("({} {})", .{ op.operator, op.tree });
             },
         }
     }
@@ -149,90 +118,178 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
     var input = TokenReader.init(source);
 
     debug.begin("parsing");
-    const tree = try parseExpr(allocator, &input);
+    const tree = try parseAdd(allocator, &input);
     debug.end("parsing");
 
     return tree;
 }
 
-// Expr   -> Term Expr'
-// Expr'  -> + Term Expr' | - Term Expr' | empty
-// Term   -> Factor Term'
-// Term'  -> * Factor Term' | / Factor Term' | empty
-// Factor -> ( Expr ) | num
+// 文法
+// Expr -> Add
+// Add  -> Mul Add'
+// Add' -> + Mul Add' | - Mul Add' | empty
+// Mul  -> Pow Mul'
+// Mul' -> * Pow Mul' | / Pow Mul' | empty
+// Pow  -> Prim Pow'
+// Pow' -> ^ Prim Pow' | empty
+// Prim -> ( Expr ) | num
 
-fn parseExpr(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("expr");
-    const term = try parseTerm(allocator, input);
-    var expr2 = try parseExpr2(allocator, input);
-    defer expr2.deinit(allocator);
-    const tree = try Expr2.toTree(allocator, term, expr2);
+fn parseAdd(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+    debug.begin("add-expr");
+
+    // Mul
+    const mul = try parseMul(allocator, input);
+
+    // Add'
+    var add2 = try parseAdd2(allocator, input);
+    defer add2.deinit(allocator);
+
+    // Add' を構文解析木に変換
+    const tree = try PartialTreeLeft.toTree(allocator, mul, add2);
+
     debug.print("tree: {}\n", .{tree});
-    debug.end("expr");
+    debug.end("add-expr");
     return tree;
 }
 
-fn parseExpr2(allocator: Allocator, input: *TokenReader) ParseError!Expr2 {
-    debug.begin("expr'");
-    var tree: Expr2 = .empty;
+fn parseAdd2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
+    debug.begin("add-expr'");
+    var tree: PartialTreeLeft = .empty;
+
+    // トークンがあり、+ - なら
     if (input.peek()) |token| {
         if (token.is("+") or token.is("-")) {
+            // トークンを読みこむ
             _ = input.next();
-            const term = try parseTerm(allocator, input);
-            const expr2 = try parseExpr2(allocator, input);
-            tree = try Expr2.initOperator(allocator, token, term, expr2);
+
+            // Mul
+            const mul = try parseMul(allocator, input);
+
+            // Add'
+            const add2 = try parseAdd2(allocator, input);
+
+            tree = try PartialTreeLeft.initOperator(allocator, token, mul, add2);
         }
     }
+
     debug.print("tree: {}\n", .{tree});
-    debug.end("expr'");
+    debug.end("add-expr'");
     return tree;
 }
 
-fn parseTerm(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("term");
-    const factor = try parseFactor(allocator, input);
-    var term2 = try parseTerm2(allocator, input);
-    defer term2.deinit(allocator);
-    const tree = try Term2.toTree(allocator, factor, term2);
+fn parseMul(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+    debug.begin("mul-expr");
+
+    // Pow
+    const pow = try parsePow(allocator, input);
+
+    // Mul'
+    var mul2 = try parseMul2(allocator, input);
+    defer mul2.deinit(allocator);
+
+    // Mul' を構文解析木に変換
+    const tree = try PartialTreeLeft.toTree(allocator, pow, mul2);
+
     debug.print("tree: {}\n", .{tree});
-    debug.end("term");
+    debug.end("mul-expr");
     return tree;
 }
 
-fn parseTerm2(allocator: Allocator, input: *TokenReader) ParseError!Term2 {
-    debug.begin("term'");
-    var tree: Term2 = .empty;
+fn parseMul2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
+    debug.begin("mul-expr'");
+    var tree: PartialTreeLeft = .empty;
+
+    // トークンがあり、* / なら
     if (input.peek()) |token| {
         if (token.is("*") or token.is("/")) {
+            // トークンを読みこむ
             _ = input.next();
-            const factor = try parseFactor(allocator, input);
-            const term2 = try parseTerm2(allocator, input);
-            tree = try Term2.initOperator(allocator, token, factor, term2);
+
+            // Pow
+            const pow = try parsePow(allocator, input);
+
+            // Mul'
+            const mul2 = try parseMul2(allocator, input);
+
+            tree = try PartialTreeLeft.initOperator(allocator, token, pow, mul2);
         }
     }
+
     debug.print("tree: {}\n", .{tree});
-    debug.end("term'");
+    debug.end("mul-expr'");
     return tree;
 }
 
-fn parseFactor(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("factor");
-    const token = input.peek() orelse return error.InvalidSyntax;
+fn parsePow(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+    debug.begin("pow-expr");
+
+    // Prim
+    const prim = try parsePrim(allocator, input);
+
+    // Pow'
+    const pow2 = try parsePow2(allocator, input);
+
+    // Pow' を構文解析木に変換
+    const tree = try PartialTreeRight.toTree(allocator, prim, pow2);
+
+    debug.print("tree: {}\n", .{tree});
+    debug.end("pow-expr");
+    return tree;
+}
+
+fn parsePow2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeRight {
+    debug.begin("pow-expr'");
+    var tree: PartialTreeRight = .empty;
+
+    // トークンがあり、^ なら
+    if (input.peek()) |token| {
+        if (token.is("^")) {
+            // トークンを読みこむ
+            _ = input.next();
+
+            // Prim
+            const prim = try parsePrim(allocator, input);
+
+            // Pow'
+            const pow2 = try parsePow2(allocator, input);
+
+            tree = try PartialTreeRight.initOperator(allocator, token, prim, pow2);
+        }
+    }
+
+    debug.print("tree: {}\n", .{tree});
+    debug.end("pow-expr'");
+    return tree;
+}
+
+fn parsePrim(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+    debug.begin("prim-expr");
     var tree: ParseTree = undefined;
+
+    // トークンの種類で分岐
+    const token = input.peek() orelse return error.InvalidSyntax;
     switch (token.tokenType()) {
+        // 数字
         .number => {
             _ = input.next();
             tree = .{ .num = token };
         },
+
+        // 括弧
         .parenthesis => {
+            // ( Expr )
             try expect(input, "(");
-            tree = try parseExpr(allocator, input);
+            tree = try parseAdd(allocator, input);
             try expect(input, ")");
         },
+
+        // それ以外
+        // 構文エラー
         else => return error.InvalidSyntax,
     }
+
     debug.print("tree: {}\n", .{tree});
-    debug.end("factor");
+    debug.end("prim-expr");
     return tree;
 }
 
@@ -245,29 +302,34 @@ test "recursive descent parsing" {
     const allocator = std.testing.allocator;
     utils.debug.enabled = false;
 
-    {
-        const source = "1 + 2 * ( 3 - 4 )";
+    const test_cases = [_]struct {
+        source: []const u8,
+        expected: []const u8,
+    }{
+        .{
+            .source = "1 + 2 * ( 3 - 4 )",
+            .expected = "(1 + (2 * (3 - 4)))",
+        },
+        .{
+            .source = "1 + 2 + 3 - 4 + 5",
+            .expected = "((((1 + 2) + 3) - 4) + 5)",
+        },
+        .{
+            .source = "1 ^ 2 ^ 3",
+            .expected = "(1 ^ (2 ^ 3))",
+        },
+    };
+
+    for (test_cases) |test_case| {
+        const source = test_case.source;
+        const expected = test_case.expected;
+
         var result = try parse(allocator, source);
         defer result.deinit(allocator);
 
         const result_string = try std.fmt.allocPrint(allocator, "{}", .{result});
         defer allocator.free(result_string);
 
-        try std.testing.expectEqualStrings(
-            \\(1 "+" (2 "*" (3 "-" 4)))
-        , result_string);
-    }
-
-    {
-        const source = "1 + 2 + 3 - 4 + 5";
-        var result = try parse(allocator, source);
-        defer result.deinit(allocator);
-
-        const result_string = try std.fmt.allocPrint(allocator, "{}", .{result});
-        defer allocator.free(result_string);
-
-        try std.testing.expectEqualStrings(
-            \\((((1 "+" 2) "+" 3) "-" 4) "+" 5)
-        , result_string);
+        try std.testing.expectEqualStrings(expected, result_string);
     }
 }
