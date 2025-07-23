@@ -90,15 +90,17 @@ pub const Token = struct {
         };
     }
 
+    // 優先順位。小さいほど優先順位が高い
     pub fn precedence(self: Token) u8 {
         return switch (self.value[0]) {
-            '+', '-' => 2,
-            '*', '/' => 3,
-            '^' => 4,
+            '+', '-' => 20,
+            '*', '/' => 30,
+            '^' => 40,
             else => unreachable,
         };
     }
 
+    // 連結する向き
     pub fn associative(self: Token) Direction {
         return switch (self.value[0]) {
             '+', '-', '*', '/' => .left,

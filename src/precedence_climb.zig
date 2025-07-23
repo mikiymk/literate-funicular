@@ -19,58 +19,36 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
     return tree;
 }
 
-// parse_expression()
-//     return parse_expression_1(parse_primary(), 0)
 fn parseExpr(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     return parseExpr1(a, input, try parsePrim(a, input), 0);
 }
 
-// parse_expression_1(lhs, min_precedence)
 fn parseExpr1(a: Allocator, input: *TokenReader, lhs: ParseTree, min_precedence: u8) ParseError!ParseTree {
     var lhs_tree = lhs;
+    debug.begin("expr");
 
-    // lookahead := peek next token
     var lookahead = input.peek();
 
-    // while lookahead is a binary operator whose precedence is >= min_precedence
-    while (lookahead) |la| {
-        if (!(la.tokenType() == .operator and la.precedence() >= min_precedence)) break;
-
-        //     op := lookahead
-        const op = la;
-
-        //     advance to next token
+    while (lookahead) |token1| {
+        if (!(token1.tokenType() == .operator and token1.precedence() >= min_precedence)) break;
         _ = input.next();
 
-        //     rhs := parse_primary ()
         var rhs_tree = try parsePrim(a, input);
 
-        //     lookahead := peek next token
         lookahead = input.peek();
+        while (lookahead) |token2| : (lookahead = input.peek()) {
+            if (token2.tokenType() != .operator) break;
+            const token1_p = token1.precedence();
+            const token2_p = token2.precedence();
+            if (!(token2_p > token1_p or (token2_p == token1_p and token2.associative() == .right))) break;
 
-        //     while lookahead is a binary operator whose precedence is greater
-        //                 than op's, or a right-associative operator
-        //                 whose precedence is equal to op's
-        while (lookahead) |la2| {
-            if (!(la2.tokenType() == .operator and
-                (la2.precedence() > op.precedence() or
-                    (la2.precedence() == op.precedence() and
-                        la2.associative() == .right)))) break;
-
-            //         rhs := parse_expression_1 (rhs, precedence of op + (1 if lookahead precedence is greater, else 0))
-            var precedence = op.precedence();
-            if (la2.precedence() > op.precedence()) precedence += 1;
-            rhs_tree = try parseExpr1(a, input, rhs_tree, precedence);
-
-            //         lookahead := peek next token
-            lookahead = input.peek();
+            rhs_tree = try parseExpr1(a, input, rhs_tree, if (token2_p > token1_p) token1_p + 1 else 0);
         }
 
-        //     lhs := the result of applying op with operands lhs and rhs
-        lhs_tree = try ParseTree.initOperator(a, lhs_tree, rhs_tree, op.toOperator());
+        lhs_tree = try ParseTree.initOperator(a, lhs_tree, rhs_tree, token1.toOperator());
     }
 
-    // return lhs
+    debug.end("expr");
     return lhs_tree;
 }
 
