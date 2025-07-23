@@ -45,14 +45,14 @@ const PartialTreeLeft = union(enum) {
         }
     }
 
-    fn toTree(allocator: Allocator, tree: ParseTree, partial: PartialTreeLeft) ParseError!ParseTree {
+    fn toTree(a: Allocator, tree: ParseTree, partial: PartialTreeLeft) ParseError!ParseTree {
         return switch (partial) {
             .empty => tree,
             .operator => |op| {
                 return toTree(
-                    allocator,
+                    a,
                     try ParseTree.initOperator(
-                        allocator,
+                        a,
                         tree,
                         op.tree,
                         op.operator,
@@ -90,12 +90,12 @@ const PartialTreeRight = union(enum) {
         } };
     }
 
-    fn toTree(allocator: Allocator, tree: ParseTree, partial: PartialTreeRight) ParseError!ParseTree {
+    fn toTree(a: Allocator, tree: ParseTree, partial: PartialTreeRight) ParseError!ParseTree {
         return switch (partial) {
             .empty => tree,
             .operator => |op| {
                 return ParseTree.initOperator(
-                    allocator,
+                    a,
                     tree,
                     op.tree,
                     op.operator,
@@ -114,11 +114,11 @@ const PartialTreeRight = union(enum) {
     }
 };
 
-pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
+pub fn parse(a: Allocator, source: []const u8) !ParseTree {
     var input = TokenReader.init(source);
 
     debug.begin("parsing");
-    const tree = try parseAdd(allocator, &input);
+    const tree = try parseAdd(a, &input);
     debug.end("parsing");
 
     return tree;
@@ -134,25 +134,25 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
 // Pow' -> ^ Prim Pow' | empty
 // Prim -> ( Expr ) | num
 
-fn parseAdd(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+fn parseAdd(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     debug.begin("add-expr");
 
     // Mul
-    const mul = try parseMul(allocator, input);
+    const mul = try parseMul(a, input);
 
     // Add'
-    var add2 = try parseAdd2(allocator, input);
-    defer add2.deinit(allocator);
+    var add2 = try parseAdd2(a, input);
+    defer add2.deinit(a);
 
     // Add' を構文解析木に変換
-    const tree = try PartialTreeLeft.toTree(allocator, mul, add2);
+    const tree = try PartialTreeLeft.toTree(a, mul, add2);
 
     debug.print("tree: {}\n", .{tree});
     debug.end("add-expr");
     return tree;
 }
 
-fn parseAdd2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
+fn parseAdd2(a: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
     debug.begin("add-expr'");
     var tree: PartialTreeLeft = .empty;
 
@@ -163,12 +163,12 @@ fn parseAdd2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLe
             _ = input.next();
 
             // Mul
-            const mul = try parseMul(allocator, input);
+            const mul = try parseMul(a, input);
 
             // Add'
-            const add2 = try parseAdd2(allocator, input);
+            const add2 = try parseAdd2(a, input);
 
-            tree = try PartialTreeLeft.initOperator(allocator, token, mul, add2);
+            tree = try PartialTreeLeft.initOperator(a, token, mul, add2);
         }
     }
 
@@ -177,25 +177,25 @@ fn parseAdd2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLe
     return tree;
 }
 
-fn parseMul(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+fn parseMul(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     debug.begin("mul-expr");
 
     // Pow
-    const pow = try parsePow(allocator, input);
+    const pow = try parsePow(a, input);
 
     // Mul'
-    var mul2 = try parseMul2(allocator, input);
-    defer mul2.deinit(allocator);
+    var mul2 = try parseMul2(a, input);
+    defer mul2.deinit(a);
 
     // Mul' を構文解析木に変換
-    const tree = try PartialTreeLeft.toTree(allocator, pow, mul2);
+    const tree = try PartialTreeLeft.toTree(a, pow, mul2);
 
     debug.print("tree: {}\n", .{tree});
     debug.end("mul-expr");
     return tree;
 }
 
-fn parseMul2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
+fn parseMul2(a: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
     debug.begin("mul-expr'");
     var tree: PartialTreeLeft = .empty;
 
@@ -206,12 +206,12 @@ fn parseMul2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLe
             _ = input.next();
 
             // Pow
-            const pow = try parsePow(allocator, input);
+            const pow = try parsePow(a, input);
 
             // Mul'
-            const mul2 = try parseMul2(allocator, input);
+            const mul2 = try parseMul2(a, input);
 
-            tree = try PartialTreeLeft.initOperator(allocator, token, pow, mul2);
+            tree = try PartialTreeLeft.initOperator(a, token, pow, mul2);
         }
     }
 
@@ -220,24 +220,24 @@ fn parseMul2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeLe
     return tree;
 }
 
-fn parsePow(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+fn parsePow(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     debug.begin("pow-expr");
 
     // Prim
-    const prim = try parsePrim(allocator, input);
+    const prim = try parsePrim(a, input);
 
     // Pow'
-    const pow2 = try parsePow2(allocator, input);
+    const pow2 = try parsePow2(a, input);
 
     // Pow' を構文解析木に変換
-    const tree = try PartialTreeRight.toTree(allocator, prim, pow2);
+    const tree = try PartialTreeRight.toTree(a, prim, pow2);
 
     debug.print("tree: {}\n", .{tree});
     debug.end("pow-expr");
     return tree;
 }
 
-fn parsePow2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeRight {
+fn parsePow2(a: Allocator, input: *TokenReader) ParseError!PartialTreeRight {
     debug.begin("pow-expr'");
     var tree: PartialTreeRight = .empty;
 
@@ -248,12 +248,12 @@ fn parsePow2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeRi
             _ = input.next();
 
             // Prim
-            const prim = try parsePrim(allocator, input);
+            const prim = try parsePrim(a, input);
 
             // Pow'
-            const pow2 = try parsePow2(allocator, input);
+            const pow2 = try parsePow2(a, input);
 
-            tree = try PartialTreeRight.initOperator(allocator, token, prim, pow2);
+            tree = try PartialTreeRight.initOperator(a, token, prim, pow2);
         }
     }
 
@@ -262,7 +262,7 @@ fn parsePow2(allocator: Allocator, input: *TokenReader) ParseError!PartialTreeRi
     return tree;
 }
 
-fn parsePrim(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
+fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     debug.begin("prim-expr");
     var tree: ParseTree = undefined;
 
@@ -279,7 +279,7 @@ fn parsePrim(allocator: Allocator, input: *TokenReader) ParseError!ParseTree {
         .parenthesis => {
             // ( Expr )
             try expect(input, "(");
-            tree = try parseAdd(allocator, input);
+            tree = try parseAdd(a, input);
             try expect(input, ")");
         },
 

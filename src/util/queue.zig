@@ -16,15 +16,15 @@ pub fn Queue(T: type) type {
             .count = 0,
         };
 
-        pub fn deinit(self: @This(), allocator: Allocator) void {
-            allocator.free(self.buf);
+        pub fn deinit(self: @This(), a: Allocator) void {
+            a.free(self.buf);
         }
 
-        pub fn enqueue(self: *@This(), allocator: Allocator, item: T) !void {
+        pub fn enqueue(self: *@This(), a: Allocator, item: T) !void {
             debug.print("enqueue: {} + {}\n", .{ self, item });
 
             if (self.buf.len <= self.count) {
-                try self.ensureCapacity(allocator);
+                try self.ensureCapacity(a);
             }
 
             self.buf[(self.head + self.count) & (self.buf.len - 1)] = item;
@@ -59,11 +59,11 @@ pub fn Queue(T: type) type {
             }
         }
 
-        fn ensureCapacity(self: *@This(), allocator: Allocator) error{OutOfMemory}!void {
+        fn ensureCapacity(self: *@This(), a: Allocator) error{OutOfMemory}!void {
             self.realign();
             const size = std.math.add(usize, self.count, 1) catch return error.OutOfMemory;
             const new_size = std.math.ceilPowerOfTwo(usize, size) catch return error.OutOfMemory;
-            self.buf = try allocator.realloc(self.buf, new_size);
+            self.buf = try a.realloc(self.buf, new_size);
         }
 
         fn realign(self: *@This()) void {

@@ -10,13 +10,13 @@ pub fn Stack(T: type) type {
 
         pub const empty: @This() = .{ .array = .empty };
 
-        pub fn deinit(self: *@This(), allocator: Allocator) void {
-            self.array.deinit(allocator);
+        pub fn deinit(self: *@This(), a: Allocator) void {
+            self.array.deinit(a);
         }
 
-        pub fn push(self: *@This(), allocator: Allocator, token: T) !void {
+        pub fn push(self: *@This(), a: Allocator, token: T) !void {
             debug.print("stack push: {} + {}\n", .{ self, token });
-            try self.array.append(allocator, token);
+            try self.array.append(a, token);
         }
 
         pub fn pop(self: *@This()) ?T {

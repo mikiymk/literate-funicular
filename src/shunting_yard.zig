@@ -11,18 +11,18 @@ const TokenReader = utils.Language1.TokenReader;
 const ParseTree = utils.Language1.ParseTree;
 
 /// 文字列を解析する
-pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
+pub fn parse(a: Allocator, source: []const u8) !ParseTree {
 
     // 入力
     var input = TokenReader.init(source);
 
     // 出力
     var output = OutputQueue{};
-    defer output.deinit(allocator);
+    defer output.deinit(a);
 
     // スタック
     var stack: utils.Stack(Token) = .empty;
-    defer stack.deinit(allocator);
+    defer stack.deinit(a);
 
     debug.begin("parsing");
 
@@ -36,7 +36,7 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
 
             // 数字
             // そのまま出力
-            .number => try output.push(allocator, o1),
+            .number => try output.push(a, o1),
 
             // 演算子
             .operator => {
@@ -64,11 +64,11 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
 
                     // スタックトップを取り出して出力
                     _ = stack.pop();
-                    try output.push(allocator, o2);
+                    try output.push(a, o2);
                 }
 
                 // 現在の入力をスタックに入れる
-                try stack.push(allocator, o1);
+                try stack.push(a, o1);
             },
 
             // 括弧
@@ -76,7 +76,7 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
                 if (o1.is("(")) {
                     // 左括弧
                     // スタックに入れる
-                    try stack.push(allocator, o1);
+                    try stack.push(a, o1);
                 } else {
                     // 右括弧
                     while (true) {
@@ -87,7 +87,7 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
                             // スタックトップが左括弧でない
                             // スタックトップを取り出して出力
                             _ = stack.pop();
-                            try output.push(allocator, stack_top);
+                            try output.push(a, stack_top);
                         } else {
                             // スタックトップが左括弧
                             // スタックトップを取り出す
@@ -109,7 +109,7 @@ pub fn parse(allocator: Allocator, source: []const u8) !ParseTree {
     while (stack.pop()) |token| {
         // スタックに左括弧が残っていたら構文エラー
         if (token.is("(")) return error.InvalidSyntax;
-        try output.push(allocator, token);
+        try output.push(a, token);
     }
 
     debug.end("process");

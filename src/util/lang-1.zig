@@ -29,9 +29,9 @@ pub const ParseTree = union(enum) {
     num: Token,
     operator: struct { left: *ParseTree, right: *ParseTree, op: Operator },
 
-    pub fn initOperator(allocator: Allocator, left: ParseTree, right: ParseTree, op: Operator) Allocator.Error!ParseTree {
-        const left_ptr = try allocator.create(ParseTree);
-        const right_ptr = try allocator.create(ParseTree);
+    pub fn initOperator(a: Allocator, left: ParseTree, right: ParseTree, op: Operator) Allocator.Error!ParseTree {
+        const left_ptr = try a.create(ParseTree);
+        const right_ptr = try a.create(ParseTree);
         left_ptr.* = left;
         right_ptr.* = right;
 
@@ -42,14 +42,14 @@ pub const ParseTree = union(enum) {
         } };
     }
 
-    pub fn deinit(self: *ParseTree, allocator: Allocator) void {
+    pub fn deinit(self: *ParseTree, a: Allocator) void {
         switch (self.*) {
             .num => {},
             .operator => |op| {
-                op.left.deinit(allocator);
-                op.right.deinit(allocator);
-                allocator.destroy(op.left);
-                allocator.destroy(op.right);
+                op.left.deinit(a);
+                op.right.deinit(a);
+                a.destroy(op.left);
+                a.destroy(op.right);
             },
         }
     }
@@ -194,21 +194,21 @@ pub const TokenReader = struct {
 pub const OutputQueue = struct {
     array: Stack(ParseTree) = .empty,
 
-    pub fn deinit(self: *OutputQueue, allocator: Allocator) void {
-        self.array.deinit(allocator);
+    pub fn deinit(self: *OutputQueue, a: Allocator) void {
+        self.array.deinit(a);
     }
 
-    pub fn push(self: *OutputQueue, allocator: Allocator, token: Token) ParseError!void {
+    pub fn push(self: *OutputQueue, a: Allocator, token: Token) ParseError!void {
         debug.print("output: {}\n", .{token});
 
         if (token.tokenType() == .operator) {
             const right = self.array.pop() orelse return error.InvalidSyntax;
             const left = self.array.pop() orelse return error.InvalidSyntax;
             const op = token.toOperator();
-            const tree = try ParseTree.initOperator(allocator, left, right, op);
-            try self.array.push(allocator, tree);
+            const tree = try ParseTree.initOperator(a, left, right, op);
+            try self.array.push(a, tree);
         } else {
-            try self.array.push(allocator, .{ .num = token });
+            try self.array.push(a, .{ .num = token });
         }
     }
 
