@@ -12,24 +12,24 @@
 
 ## 1. Simple-Calculator
 
-足し算と掛け算と括弧のみをサポートする。
+四則演算、累乗と括弧のみの計算式。
 
-```bnf
-<expr> ::= <add-expr>
+```ebnf
+Expr ::= AddExpr
 
-<add-expr> ::= <mul-expr>
-             | <add-expr> + <mul-expr>
-             | <add-expr> - <mul-expr>
+AddExpr ::= MulExpr
+          | AddExpr "+" MulExpr
+          | AddExpr "-" MulExpr
 
-<mul-expr> ::= <pow-expr>
-             | <mul-expr> * <pow-expr>
-             | <mul-expr> / <pow-expr>
+MulExpr ::= PowExpr
+          | MulExpr "*" PowExpr
+          | MulExpr "/" PowExpr
 
-<pow-expr> ::= <prim-expr>
-             | <prim-expr> ^ <pow-expr>
+PowExpr ::= Prim
+          | Prim "^" PowExpr
 
-<prim-expr> ::= <constant>
-              | ( <expr> )
+Prim ::= constant
+       | "(" Expr ")"
 ```
 
 ## 2. Subset-C

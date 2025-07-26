@@ -15,19 +15,25 @@ pub const Operator = enum {
     pow,
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        switch (self) {
-            .add => try writer.writeAll("+"),
-            .sub => try writer.writeAll("-"),
-            .mul => try writer.writeAll("*"),
-            .div => try writer.writeAll("/"),
-            .pow => try writer.writeAll("^"),
-        }
+        const str = switch (self) {
+            .add => "+",
+            .sub => "-",
+            .mul => "*",
+            .div => "/",
+            .pow => "^",
+        };
+
+        try writer.writeAll(str);
     }
 };
 
 pub const ParseTree = union(enum) {
-    num: Token,
+    num: []const u8,
     operator: struct { left: *ParseTree, right: *ParseTree, op: Operator },
+
+    pub fn initNumber(token: Token) ParseTree {
+        return .{ .num = token.value };
+    }
 
     pub fn initOperator(a: Allocator, left: ParseTree, right: ParseTree, op: Operator) Allocator.Error!ParseTree {
         const left_ptr = try a.create(ParseTree);
@@ -56,7 +62,7 @@ pub const ParseTree = union(enum) {
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
-            .num => |num| try writer.print("{}", .{num}),
+            .num => |num| try writer.print("{s}", .{num}),
             .operator => |op| try writer.print("({} {} {})", .{ op.left, op.op, op.right }),
         }
     }
@@ -210,7 +216,7 @@ pub const OutputQueue = struct {
             const tree = try ParseTree.initOperator(a, left, right, op);
             try self.array.push(a, tree);
         } else {
-            try self.array.push(a, .{ .num = token });
+            try self.array.push(a, ParseTree.initNumber(token));
         }
     }
 
@@ -221,4 +227,36 @@ pub const OutputQueue = struct {
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.print("{}", .{self.array});
     }
+};
+
+pub const TestCase = struct { source: []const u8, expected: []const u8 };
+pub const test_cases = [_]TestCase{
+    .{
+        .source = "1 + 2",
+        .expected = "(1 + 2)",
+    },
+    .{
+        .source = "1 * 2",
+        .expected = "(1 * 2)",
+    },
+    .{
+        .source = "1 ^ 2",
+        .expected = "(1 ^ 2)",
+    },
+    .{
+        .source = "1 + 2 * (3 - 4)",
+        .expected = "(1 + (2 * (3 - 4)))",
+    },
+    .{
+        .source = "1 + 2 + 3 - 4 + 5",
+        .expected = "((((1 + 2) + 3) - 4) + 5)",
+    },
+    .{
+        .source = "1 ^ 2 ^ 3",
+        .expected = "(1 ^ (2 ^ 3))",
+    },
+    .{
+        .source = "1 + (2 + 3) * (4 - 5) ^ 6",
+        .expected = "(1 + ((2 + 3) * ((4 - 5) ^ 6)))",
+    },
 };

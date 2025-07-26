@@ -1,10 +1,13 @@
+//! 優先順位上昇法
+//!
+//! 右側と左側の演算子の優先順位を比較し、優先順位の高い方を先に結合する
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const utils = @import("./util.zig");
 
 const TokenReader = utils.Language1.TokenReader;
-const Operator = utils.Language1.Operator;
 const ParseTree = utils.Language1.ParseTree;
 const ParseError = utils.Language1.ParseError;
 const debug = utils.debug;
@@ -20,6 +23,7 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
 }
 
 fn parseExpr(a: Allocator, input: *TokenReader) ParseError!ParseTree {
+    // 最初の左辺を読み込み、最小の優先順位を0とする
     return parseExpr1(a, input, try parsePrim(a, input), 0);
 }
 
@@ -27,24 +31,30 @@ fn parseExpr1(a: Allocator, input: *TokenReader, lhs: ParseTree, min_precedence:
     var lhs_tree = lhs;
     debug.begin("expr");
 
+    // 先読み
     var lookahead = input.peek();
-
     while (lookahead) |token1| {
+        // 次のトークンが演算子で、優先順位が`min_precedence`以上の限りループする
         if (!(token1.tokenType() == .operator and token1.precedence() >= min_precedence)) break;
-        _ = input.next();
+        _ = input.next(); // 先読みしたトークンを消費
 
+        // 右辺を1つ読み込む
         var rhs_tree = try parsePrim(a, input);
 
+        // 右辺の先読み
         lookahead = input.peek();
         while (lookahead) |token2| : (lookahead = input.peek()) {
+            // 次のトークンが演算子で、優先順位が`token1`より高いか、同じで右結合になる限りループする
             if (token2.tokenType() != .operator) break;
             const token1_p = token1.precedence();
             const token2_p = token2.precedence();
             if (!(token2_p > token1_p or (token2_p == token1_p and token2.associative() == .right))) break;
 
-            rhs_tree = try parseExpr1(a, input, rhs_tree, if (token2_p > token1_p) token1_p + 1 else 0);
+            // 現在の右辺を左辺として、再帰的に右辺を読み込む
+            rhs_tree = try parseExpr1(a, input, rhs_tree, if (token2_p > token1_p) token1_p + 1 else token1_p);
         }
 
+        // 左辺と右辺を結合し、次の演算子のために左辺にする
         lhs_tree = try ParseTree.initOperator(a, lhs_tree, rhs_tree, token1.toOperator());
     }
 
@@ -62,7 +72,7 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         // 数字
         .number => {
             _ = input.next();
-            tree = .{ .num = token };
+            tree = ParseTree.initNumber(token);
         },
 
         // 括弧
@@ -92,23 +102,7 @@ test "precedence climb parsing" {
     const allocator = std.testing.allocator;
     utils.debug.enabled = false;
 
-    const test_cases = [_]struct {
-        source: []const u8,
-        expected: []const u8,
-    }{
-        .{
-            .source = "1 + 2 * ( 3 - 4 )",
-            .expected = "(1 + (2 * (3 - 4)))",
-        },
-        .{
-            .source = "1 + 2 + 3 - 4 + 5",
-            .expected = "((((1 + 2) + 3) - 4) + 5)",
-        },
-        .{
-            .source = "1 ^ 2 ^ 3",
-            .expected = "(1 ^ (2 ^ 3))",
-        },
-    };
+    const test_cases = utils.Language1.test_cases;
 
     for (test_cases) |test_case| {
         const source = test_case.source;

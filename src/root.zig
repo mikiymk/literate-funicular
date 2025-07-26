@@ -13,10 +13,21 @@ test "basic add functionality" {
     try testing.expect(add(3, 7) == 10);
 }
 
-pub const shunting_yard = @import("./shunting_yard.zig");
+/// 再帰下降構文解析法
 pub const recursive_descent = @import("./recursive_descent.zig");
+
+/// ループを使用した再帰下降構文解析法
 pub const recursive_descent_loop = @import("./recursive_descent_loop.zig");
+
+/// ダイクストラの操車場アルゴリズム
+pub const shunting_yard = @import("./shunting_yard.zig");
+
+/// 優先順位上昇法
 pub const precedence_climb = @import("./precedence_climb.zig");
+
+// テーブルを使う
+
+pub const operator_precedence = @import("./operator_precedence.zig");
 
 test {
     _ = shunting_yard;

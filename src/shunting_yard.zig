@@ -121,23 +121,7 @@ test "shunting yard algorithm" {
     const allocator = std.testing.allocator;
     utils.debug.enabled = false;
 
-    const test_cases = [_]struct {
-        source: []const u8,
-        expected: []const u8,
-    }{
-        .{
-            .source = "1 + 2 * ( 3 - 4 )",
-            .expected = "(1 + (2 * (3 - 4)))",
-        },
-        .{
-            .source = "1 + 2 + 3 - 4 + 5",
-            .expected = "((((1 + 2) + 3) - 4) + 5)",
-        },
-        .{
-            .source = "1 ^ 2 ^ 3",
-            .expected = "(1 ^ (2 ^ 3))",
-        },
-    };
+    const test_cases = utils.Language1.test_cases;
 
     for (test_cases) |test_case| {
         const source = test_case.source;
