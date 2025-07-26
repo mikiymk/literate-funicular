@@ -28,7 +28,7 @@ MulExpr ::= PowExpr
 PowExpr ::= Prim
           | Prim "^" PowExpr
 
-Prim ::= constant
+Prim ::= number
        | "(" Expr ")"
 ```
 

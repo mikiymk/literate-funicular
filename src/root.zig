@@ -25,8 +25,7 @@ pub const shunting_yard = @import("./shunting_yard.zig");
 /// 優先順位上昇法
 pub const precedence_climb = @import("./precedence_climb.zig");
 
-// テーブルを使う
-
+/// テーブルを使う
 pub const operator_precedence = @import("./operator_precedence.zig");
 
 test {
@@ -34,4 +33,5 @@ test {
     _ = recursive_descent;
     _ = recursive_descent_loop;
     _ = precedence_climb;
+    _ = operator_precedence;
 }

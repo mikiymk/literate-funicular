@@ -232,6 +232,10 @@ pub const OutputQueue = struct {
 pub const TestCase = struct { source: []const u8, expected: []const u8 };
 pub const test_cases = [_]TestCase{
     .{
+        .source = "10",
+        .expected = "10",
+    },
+    .{
         .source = "1 + 2",
         .expected = "(1 + 2)",
     },
@@ -256,7 +260,7 @@ pub const test_cases = [_]TestCase{
         .expected = "(1 ^ (2 ^ 3))",
     },
     .{
-        .source = "1 + (2 + 3) * (4 - 5) ^ 6",
-        .expected = "(1 + ((2 + 3) * ((4 - 5) ^ 6)))",
+        .source = "1 + (2 + 3) / (4 - 5) ^ 6",
+        .expected = "(1 + ((2 + 3) / ((4 - 5) ^ 6)))",
     },
 };
