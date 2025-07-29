@@ -21,7 +21,7 @@ pub fn Queue(T: type) type {
         }
 
         pub fn enqueue(self: *@This(), a: Allocator, item: T) !void {
-            debug.print("enqueue: {} + {}\n", .{ self, item });
+            debug.print("enqueue: {} + {}", .{ self, item });
 
             if (self.buf.len <= self.count) {
                 try self.ensureCapacity(a);
@@ -33,14 +33,14 @@ pub fn Queue(T: type) type {
 
         pub fn dequeue(self: *@This()) ?T {
             if (self.count == 0) {
-                debug.print("dequeue: {} - {?}\n", .{ self, null });
+                debug.print("dequeue: {} - {?}", .{ self, null });
                 return null;
             }
 
             const item = self.buf[self.head];
             self.discard();
 
-            debug.print("dequeue: {} - {}\n", .{ self, item });
+            debug.print("dequeue: {} - {}", .{ self, item });
             return item;
         }
 

@@ -88,7 +88,7 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         else => return error.InvalidSyntax,
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("prim-expr");
     return tree;
 }

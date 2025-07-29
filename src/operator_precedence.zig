@@ -50,6 +50,7 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Array = std.ArrayListUnmanaged;
 
 const utils = @import("./util.zig");
 
@@ -61,13 +62,336 @@ const debug = utils.debug;
 
 pub fn parse(a: Allocator, source: []const u8) !ParseTree {
     _ = source;
-    _ = operator_precedence_table;
-    _ = operatorPrecedenceTable;
 
-    _ = createOperatorPrecedenceTable(a, &.{});
+    const defines = [_]operator_precedence.Define{
+        .{ .name = "id", .type = .id },
+        .{ .name = "+", .type = .{ .operator = .{ .associative = .left, .precedence = 10 } } },
+        .{ .name = "-", .type = .{ .operator = .{ .associative = .left, .precedence = 10 } } },
+        .{ .name = "*", .type = .{ .operator = .{ .associative = .left, .precedence = 20 } } },
+        .{ .name = "/", .type = .{ .operator = .{ .associative = .left, .precedence = 20 } } },
+        .{ .name = "^", .type = .{ .operator = .{ .associative = .right, .precedence = 30 } } },
+        .{ .name = "(", .type = .{ .left_paren = .{ .right = ")" } } },
+        .{ .name = ")", .type = .{ .right_paren = .{ .left = "(" } } },
+        .{ .name = "$", .type = .end },
+    };
+    const table = try operator_precedence.create(a, &defines);
+    _ = table;
 
     return error.NotImplemented;
 }
+const operator_precedence = struct {
+    const OperatorKind = union(enum) {
+        id: void,
+        operator: struct {
+            associative: enum { left, right },
+            precedence: usize,
+        },
+        left_paren: struct { right: []const u8 },
+        right_paren: struct { left: []const u8 },
+        end: void,
+    };
+
+    const Prec = enum {
+        none,
+        /// - LOWER_PRECEDENCE: ⋖ (優先順位を譲る)
+        lower,
+        /// - EQUAL_PRECEDENCE: ≐ (同じ優先順位)
+        equal,
+        /// - HIGHER_PRECEDENCE: ⋗ (優先順位が高い)
+        higher,
+
+        fn symbol(self: @This()) []const u8 {
+            return switch (self) {
+                .none => "",
+                .lower => "⋖",
+                .equal => "≐",
+                .higher => "⋗",
+            };
+        }
+
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.writeAll(self.symbol());
+        }
+    };
+
+    const Define = struct {
+        name: []const u8,
+        type: OperatorKind,
+    };
+
+    fn create(a: Allocator, operators: []const Define) !OperatorPrecedenceTable {
+        debug.begin("create operator precedence table");
+
+        debug.begin("create precedence table");
+        const table = try a.alloc(TableItem, operators.len * operators.len);
+        defer a.free(table);
+
+        for (operators, 0..) |left, left_idx| {
+            for (operators, 0..) |right, right_idx| {
+                const idx = left_idx * operators.len + right_idx;
+                table[idx] = .{
+                    &left,
+                    &right,
+                    try precedenceFromOperatorKind(left.type, right.type),
+                };
+            }
+        }
+
+        printTable(operators, table);
+        debug.end("create precedence table");
+
+        debug.begin("create precedence graph");
+        var graph = try Graph.init(a, operators);
+        defer graph.deinit(a);
+
+        // debug.print("{any}\n", .{graph});
+        for (graph.nodes.items) |node| {
+            debug.print("{}\n", .{node});
+        }
+        // printGraph(graph);
+
+        for (operators) |op| {
+            debug.print("{s}", .{op.name});
+        }
+        if (true) return error.E;
+
+        var left_array = Array(struct { *const Define, Array(*const Define) }).empty;
+        var right_array = Array(struct { *const Define, Array(*const Define) }).empty;
+        for (table) |table_item| {
+            const left, const right, const prec = table_item;
+            switch (prec) {
+                .none => {},
+                .equal => {
+                    try graph.unions(a, .{ .f = left }, .{ .g = right });
+                    for (left_array.items) |*left_item| {
+                        if (left_item[0] == left) {
+                            try left_item[1].append(a, right);
+                            break;
+                        }
+                    } else {
+                        try left_array.append(a, .{ left, .empty });
+                    }
+                    for (right_array.items) |*right_item| {
+                        if (right_item[0] == right) {
+                            try right_item[1].append(a, left);
+                            break;
+                        }
+                    } else {
+                        try right_array.append(a, .{ right, .empty });
+                    }
+                },
+                .higher => try graph.addEdge(a, .{ .f = left }, .{ .g = right }),
+                .lower => try graph.addEdge(a, .{ .g = left }, .{ .f = right }),
+            }
+        }
+
+        printGraph(graph);
+
+        debug.end("create precedence graph");
+
+        debug.end("create operator precedence table");
+        return undefined;
+    }
+
+    const TableItem = struct { *const Define, *const Define, Prec };
+
+    const NodeSymbol = union(enum) {
+        f: *const Define,
+        g: *const Define,
+
+        fn equals(self: NodeSymbol, other: NodeSymbol) bool {
+            return (self == .f and other == .f and self.f == other.f) or
+                (self == .g and other == .g and self.g == other.g);
+        }
+
+        pub fn format(self: NodeSymbol, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            switch (self) {
+                .f => try writer.print("f({s})", .{self.f.name}),
+                .g => try writer.print("g({s})", .{self.g.name}),
+            }
+        }
+    };
+
+    const Node = struct {
+        symbols: Array(NodeSymbol),
+        links: Array(*Node) = .empty,
+
+        fn init(a: Allocator, symbol: NodeSymbol) !Node {
+            var symbols = Array(NodeSymbol).empty;
+            try symbols.append(a, symbol);
+            return .{ .symbols = symbols };
+        }
+
+        pub fn format(self: Node, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.writeAll("Node:");
+            for (self.symbols.items) |symbol| {
+                try writer.print(" {}", .{symbol});
+            }
+            try writer.writeAll("->");
+            for (self.links.items) |node| {
+                try writer.print(" {*}", .{node});
+            }
+        }
+    };
+
+    const Graph = struct {
+        nodes: Array(Node),
+
+        fn init(a: Allocator, operators: []const Define) !Graph {
+            var nodes = Array(Node).empty;
+            for (operators) |op| {
+                try nodes.append(a, try Node.init(a, .{ .f = &op }));
+                try nodes.append(a, try Node.init(a, .{ .g = &op }));
+            }
+
+            return .{ .nodes = nodes };
+        }
+
+        fn deinit(self: *Graph, a: Allocator) void {
+            for (self.nodes.items) |*node| {
+                node.symbols.deinit(a);
+                node.links.deinit(a);
+            }
+            self.nodes.deinit(a);
+        }
+
+        fn get(self: Graph, symbol: NodeSymbol) *Node {
+            for (self.nodes.items) |*node| {
+                for (node.symbols.items) |s| {
+                    if (s.equals(symbol)) {
+                        return node;
+                    }
+                }
+            }
+
+            unreachable;
+        }
+
+        fn unions(self: *Graph, a: Allocator, left: NodeSymbol, right: NodeSymbol) !void {
+            const left_node = self.get(left);
+            const right_node = self.get(right);
+
+            for (right_node.symbols.items) |symbol| {
+                try left_node.symbols.append(a, symbol);
+            }
+            for (right_node.links.items) |link| {
+                try left_node.links.append(a, link);
+            }
+
+            for (self.nodes.items) |*node| {
+                for (node.links.items) |*link| {
+                    if (link.* == right_node) {
+                        link.* = left_node;
+                    }
+                }
+            }
+        }
+
+        fn addEdge(self: *Graph, a: Allocator, left: NodeSymbol, right: NodeSymbol) !void {
+            const left_node = self.get(left);
+            const right_node = self.get(right);
+
+            try left_node.links.append(a, right_node);
+        }
+    };
+
+    fn precedenceFromOperatorKind(left: OperatorKind, right: OperatorKind) !Prec {
+        return switch (left) {
+            .id => switch (right) {
+                .id => .none, // l:id ≠ r:id
+                .left_paren => .none, // l:id ≠ r:(
+                .operator, .right_paren, .end => .higher, // l:id ⋗ r:others
+            },
+            .operator => |left_op| switch (right) {
+                .id => .lower, // l:op ⋖ r:id
+                .operator => |right_op| switch (std.math.order(left_op.precedence, right_op.precedence)) {
+                    .gt => .higher, // l:op ⋗ r:op
+                    .lt => .lower, // l:op ⋖ r:op
+                    .eq => if (left_op.associative == right_op.associative)
+                        switch (left_op.associative) {
+                            .left => .higher, // l:op ⋗ r:op
+                            .right => .lower, // l:op ⋖ r:op
+                        }
+                    else
+                        error.InvalidGrammar,
+                },
+                .left_paren => .lower, // l:op ⋖ r:(
+                .right_paren => .higher, // l:op ⋗ r
+                .end => .higher, // l:op ⋗ r:$
+            },
+            .left_paren => switch (right) {
+                .id => .lower, // l:( ⋖ r:id
+                .operator => .lower, // l:( ⋖ r:op
+                .left_paren => .lower, // l:( ⋖ r:(
+                .right_paren => .equal, // l:( ≐ r:)
+                .end => .none, // l:( ≠ r:$
+            },
+            .right_paren => switch (right) {
+                .id => .none, // l:) ≠ r:id
+                .operator => .higher, // l:) ⋗ r:op
+                .left_paren => .none, // l:) ≠ r:(
+                .right_paren => .higher, // l:) ⋗ r:)
+                .end => .higher, // l:) ⋗ r:$
+            },
+            .end => switch (right) {
+                .id => .lower, // l:$ ⋖ r:id
+                .operator => .lower, // l:$ ⋖ r:op
+                .left_paren => .lower, // l:$ ⋖ r:(
+                .right_paren => .none, // l:$ ≠ r:)
+                .end => .none, // l:$ ≠ r:$
+            },
+        };
+    }
+
+    fn printTable(operators: []const Define, table: []const TableItem) void {
+        const print = std.debug.print;
+        if (debug.enabled) {
+            debug.begin("print operator precedence table");
+            debug.indent();
+            print("   ", .{});
+            for (operators) |right| {
+                print(" {s: <3}", .{right.name});
+            }
+            print("\n", .{});
+
+            for (operators, 0..) |left, left_idx| {
+                debug.indent();
+                print("{s: <3}", .{left.name});
+                for (operators, 0..) |_, right_idx| {
+                    const idx = left_idx * operators.len + right_idx;
+                    print(" {s: <3}", .{table[idx][2].symbol()});
+                }
+                print("\n", .{});
+            }
+            debug.end("print operator precedence table");
+        }
+    }
+
+    fn printGraph(graph: Graph) void {
+        const print = std.debug.print;
+        if (debug.enabled) {
+            debug.begin("print precedence graph");
+            for (graph.nodes.items) |node| {
+                debug.indent();
+                print("node:", .{});
+                for (node.symbols.items) |symbol| {
+                    print(" {}", .{symbol});
+                }
+                print("\n", .{});
+                for (node.links.items) |link| {
+                    debug.indent();
+                    print(" ->", .{});
+                    for (link.symbols.items) |symbol| {
+                        print(" {}", .{symbol});
+                    }
+                    print("\n", .{});
+                }
+                print("\n", .{});
+            }
+            debug.end("print precedence graph");
+        }
+    }
+};
 
 const OperatorType = enum {
     id,
@@ -133,19 +457,6 @@ const OperatorPrecedenceTable = struct {
         return self.precedence_array[indexOf(left, right)];
     }
 };
-
-const OperatorDefine = struct {
-    name: []const u8,
-    type: enum { operator, id, left_paren, right_paren, end },
-    associative: ?enum { left, right } = null,
-    precedence: ?usize = null,
-};
-
-fn createOperatorPrecedenceTable(a: Allocator, operators: []const OperatorDefine) OperatorPrecedenceTable {
-    _ = a;
-    _ = operators;
-    return undefined;
-}
 
 /// ## 優先順位表
 ///
@@ -235,7 +546,7 @@ const PrecedenceFunctions = struct {
 
 test "operator precedence parsing" {
     const allocator = std.testing.allocator;
-    utils.debug.enabled = false;
+    utils.debug.enabled = true;
 
     const test_cases = utils.Language1.test_cases;
 

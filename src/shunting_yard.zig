@@ -29,7 +29,7 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
     while (input.next()) |o1| {
         // 入力から1つのトークンを取り出し、処理を行なう
         debug.begin("process");
-        debug.print("read token: {}\n", .{o1});
+        debug.print("read token: {}", .{o1});
 
         switch (o1.tokenType()) {
             // トークンの種類によって処理を分岐
@@ -102,7 +102,7 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
         debug.end("process");
     }
 
-    debug.print("read token: none\n", .{});
+    debug.print("read token: none", .{});
     // 入力が終わった
 
     // スタックに残ったものを順番に出力

@@ -6,19 +6,24 @@ pub var enabled = false;
 var indent_tags: [10][]const u8 = undefined;
 var indent_count: u8 = 0;
 
-pub fn print(comptime fmt: []const u8, args: anytype) void {
+pub fn indent() void {
     if (enabled) {
         for (0..indent_count) |_| {
             std.debug.print("  ", .{});
         }
+    }
+}
 
-        std.debug.print(fmt, args);
+pub fn print(comptime fmt: []const u8, args: anytype) void {
+    if (enabled) {
+        indent();
+        std.debug.print(fmt ++ "\n", args);
     }
 }
 
 pub fn begin(name: []const u8) void {
     if (enabled) {
-        print("{s}\n", .{name});
+        print("{s}", .{name});
         indent_tags[indent_count] = name;
         indent_count += 1;
     }
@@ -30,7 +35,7 @@ pub fn end(name: []const u8) void {
             const indent_name = indent_tags[indent_count - 1];
 
             indent_count -= 1;
-            print("{s}\n", .{indent_name});
+            print("{s}", .{indent_name});
             if (std.mem.eql(u8, indent_name, name)) break;
         }
     }

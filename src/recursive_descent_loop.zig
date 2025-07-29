@@ -48,7 +48,7 @@ fn parseAdd(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         tree = try ParseTree.initOperator(a, tree, mul, token.toOperator());
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("add-expr");
     return tree;
 }
@@ -72,7 +72,7 @@ fn parseMul(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         tree = try ParseTree.initOperator(a, tree, pow, token.toOperator());
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("mul-expr");
     return tree;
 }
@@ -116,7 +116,7 @@ fn parsePow(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         tree = try ParseTree.initOperator(a, tree, pt.prim, pt.token.toOperator());
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("pow-expr");
     return tree;
 }
@@ -147,7 +147,7 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         else => return error.InvalidSyntax,
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("prim-expr");
     return tree;
 }

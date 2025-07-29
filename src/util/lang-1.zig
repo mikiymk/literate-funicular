@@ -207,7 +207,7 @@ pub const OutputQueue = struct {
     }
 
     pub fn push(self: *OutputQueue, a: Allocator, token: Token) ParseError!void {
-        debug.print("output: {}\n", .{token});
+        debug.print("output: {}", .{token});
 
         if (token.tokenType() == .operator) {
             const right = self.array.pop() orelse return error.InvalidSyntax;

@@ -147,7 +147,7 @@ fn parseAdd(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     // Add' を構文解析木に変換
     const tree = try PartialTreeLeft.toTree(a, mul, add2);
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("add-expr");
     return tree;
 }
@@ -172,7 +172,7 @@ fn parseAdd2(a: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
         }
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("add-expr'");
     return tree;
 }
@@ -190,7 +190,7 @@ fn parseMul(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     // Mul' を構文解析木に変換
     const tree = try PartialTreeLeft.toTree(a, pow, mul2);
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("mul-expr");
     return tree;
 }
@@ -215,7 +215,7 @@ fn parseMul2(a: Allocator, input: *TokenReader) ParseError!PartialTreeLeft {
         }
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("mul-expr'");
     return tree;
 }
@@ -232,7 +232,7 @@ fn parsePow(a: Allocator, input: *TokenReader) ParseError!ParseTree {
     // Pow' を構文解析木に変換
     const tree = try PartialTreeRight.toTree(a, prim, pow2);
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("pow-expr");
     return tree;
 }
@@ -257,7 +257,7 @@ fn parsePow2(a: Allocator, input: *TokenReader) ParseError!PartialTreeRight {
         }
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("pow-expr'");
     return tree;
 }
@@ -288,7 +288,7 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         else => return error.InvalidSyntax,
     }
 
-    debug.print("tree: {}\n", .{tree});
+    debug.print("tree: {}", .{tree});
     debug.end("prim-expr");
     return tree;
 }
