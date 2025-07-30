@@ -282,6 +282,11 @@ const Graph = struct {
             return .{ .symbols = symbols };
         }
 
+        fn deinit(self: *Node, a: Allocator) void {
+            self.symbols.deinit(a);
+            self.links.deinit(a);
+        }
+
         pub fn format(self: Node, comptime fmt: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             if (std.mem.eql(u8, fmt, "symbols")) {
                 try writer.writeAll("\"");
@@ -295,77 +300,79 @@ const Graph = struct {
                 }
                 try writer.writeAll("\"");
             } else if (std.mem.eql(u8, fmt, "links")) {
-                if (std.mem.eql(u8, fmt, "symbols")) {
-                    var first = true;
-                    for (self.links.items) |link| {
-                        if (!first) {
-                            try writer.writeAll(", ");
-                        }
-                        try writer.print("{symbols:}", .{link.*});
-                        first = false;
+                var first = true;
+                for (self.links.items) |link| {
+                    if (!first) {
+                        try writer.writeAll(", ");
                     }
+                    try writer.print("{symbols}", .{link.*});
+                    first = false;
                 }
             } else {
-                try writer.print("{symbols:} -> {links:}", .{ self, self });
+                try writer.print("{symbols} -> {links}", .{ self, self });
             }
         }
     };
 
     nodes: Array(Node),
+    enables: Array(bool),
 
     fn init(a: Allocator, table: RelationTable) !Graph {
-        var nodes = Array(Node).empty;
+        const nodes = Array(Node).empty;
+        const enables = Array(bool).empty;
+        var graph: Graph = .{ .nodes = nodes, .enables = enables };
+
         for (table.operators) |*op| {
-            try nodes.append(a, try Node.init(a, .{ .f = op }));
-            try nodes.append(a, try Node.init(a, .{ .g = op }));
+            try graph.addNode(a, .{ .f = op });
+            try graph.addNode(a, .{ .g = op });
         }
 
-        var graph: Graph = .{ .nodes = nodes };
-
-        var left_array = Array(struct { *const Define, Array(*const Define) }).empty;
-        defer left_array.deinit(a);
-        var right_array = Array(struct { *const Define, Array(*const Define) }).empty;
-        defer right_array.deinit(a);
+        const Map = std.AutoArrayHashMapUnmanaged(*const Define, Array(*const Define));
+        var left_equals = Map.empty;
+        var right_equals = Map.empty;
+        defer {
+            for (left_equals.values()) |*items|
+                items.deinit(a);
+            left_equals.deinit(a);
+            for (right_equals.values()) |*items|
+                items.deinit(a);
+            right_equals.deinit(a);
+        }
 
         for (table.items) |item| {
+            debug.print("item ({s}, {s}, {})", .{ item.left.name, item.right.name, item.precedence });
+            graph.print();
             switch (item.precedence) {
                 .none => {},
                 .equal => {
                     try graph.contraction(a, .{ .f = item.left }, .{ .g = item.right });
-                    for (left_array.items) |*left_item| {
-                        if (left_item[0] == item.left) {
-                            try left_item[1].append(a, item.right);
-                            break;
-                        }
-                    } else {
-                        try left_array.append(a, .{ item.left, .empty });
-                    }
-                    for (right_array.items) |*right_item| {
-                        if (right_item[0] == item.right) {
-                            try right_item[1].append(a, item.left);
-                            break;
-                        }
-                    } else {
-                        try right_array.append(a, .{ item.right, .empty });
-                    }
+
+                    var left_array = left_equals.get(item.left) orelse Array(*const Define).empty;
+                    try left_array.append(a, item.right);
+                    try left_equals.put(a, item.left, left_array);
+
+                    var right_array = right_equals.get(item.right) orelse Array(*const Define).empty;
+                    try right_array.append(a, item.left);
+                    try right_equals.put(a, item.right, right_array);
                 },
                 .higher => try graph.addEdge(a, .{ .f = item.left }, .{ .g = item.right }),
                 .lower => try graph.addEdge(a, .{ .g = item.left }, .{ .f = item.right }),
             }
+            graph.print();
         }
 
-        for (left_array.items) |item| {
-            if (item[1].items.len <= 1) continue;
-            const first = item[1].items[0];
-            for (item[1].items[1..]) |other| {
+        for (left_equals.values()) |value| {
+            if (value.items.len <= 1) continue;
+            const first = value.items[0];
+            for (value.items[1..]) |other| {
                 try graph.contraction(a, .{ .f = first }, .{ .f = other });
             }
         }
 
-        for (right_array.items) |item| {
-            if (item[1].items.len <= 1) continue;
-            const first = item[1].items[0];
-            for (item[1].items[1..]) |other| {
+        for (right_equals.values()) |value| {
+            if (value.items.len <= 1) continue;
+            const first = value.items[0];
+            for (value.items[1..]) |other| {
                 try graph.contraction(a, .{ .g = first }, .{ .g = other });
             }
         }
@@ -374,15 +381,22 @@ const Graph = struct {
     }
 
     fn deinit(self: *Graph, a: Allocator) void {
-        for (self.nodes.items) |*node| {
-            node.symbols.deinit(a);
-            node.links.deinit(a);
+        for (self.nodes.items, self.enables.items) |*node, enabled| {
+            if (!enabled) continue;
+            node.deinit(a);
         }
         self.nodes.deinit(a);
+        self.enables.deinit(a);
     }
 
-    fn get(self: Graph, symbol: Symbol) *Node {
-        for (self.nodes.items) |*node| {
+    fn addNode(self: *Graph, a: Allocator, symbol: Symbol) !void {
+        try self.nodes.append(a, try Node.init(a, symbol));
+        try self.enables.append(a, true);
+    }
+
+    fn get(self: *Graph, symbol: Symbol) *Node {
+        for (self.nodes.items, self.enables.items) |*node, enable| {
+            if (!enable) continue;
             for (node.symbols.items) |s| {
                 if (s.equals(symbol)) {
                     return node;
@@ -393,8 +407,9 @@ const Graph = struct {
         unreachable;
     }
 
-    fn getIndex(self: Graph, symbol: Symbol) usize {
-        for (self.nodes.items, 0..) |*node, idx| {
+    fn getIndex(self: *Graph, symbol: Symbol) usize {
+        for (self.nodes.items, self.enables.items, 0..) |*node, enable, idx| {
+            if (!enable) continue;
             for (node.symbols.items) |s| {
                 if (s.equals(symbol)) {
                     return idx;
@@ -408,6 +423,7 @@ const Graph = struct {
     fn contraction(self: *Graph, a: Allocator, left: Symbol, right: Symbol) !void {
         const left_node = self.get(left);
         const right_node = self.get(right);
+        const right_index = self.getIndex(right);
 
         for (right_node.symbols.items) |symbol| {
             try left_node.symbols.append(a, symbol);
@@ -416,13 +432,18 @@ const Graph = struct {
             try left_node.links.append(a, link);
         }
 
-        for (self.nodes.items) |*node| {
+        for (self.nodes.items, self.enables.items) |node, enabled| {
+            if (!enabled) continue;
             for (node.links.items) |*link| {
                 if (link.* == right_node) {
                     link.* = left_node;
                 }
             }
         }
+
+        self.enables.items[right_index] = false;
+        self.nodes.items[right_index].deinit(a);
+        self.nodes.items[right_index] = undefined;
     }
 
     fn addEdge(self: *Graph, a: Allocator, left: Symbol, right: Symbol) !void {
@@ -435,10 +456,14 @@ const Graph = struct {
     fn print(self: Graph) void {
         if (debug.enabled) {
             debug.begin("print precedence graph");
-            for (self.nodes.items) |node| {
+            for (self.nodes.items, self.enables.items) |node, enabled| {
+                if (!enabled) continue;
+                debug.indent();
+                std.debug.print("{symbols} ->", .{node});
                 for (node.links.items) |link| {
-                    debug.print("{symbols} -> {symbols}", .{ node, link });
+                    std.debug.print(" {symbols}", .{link});
                 }
+                std.debug.print("\n", .{});
             }
             debug.end("print precedence graph");
         }
