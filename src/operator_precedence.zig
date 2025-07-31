@@ -47,6 +47,9 @@
 //! 3. グラフがサイクルを持たない場合
 //!    - `f(a) = f(a) を含むノードからの最長パス`
 //!    - `g(a) = g(a) を含むノードからの最長パス`
+//!
+//! ## 演算子優先順位法のアルゴリズム
+//!
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -74,7 +77,7 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
         .{ .name = ")", .type = .{ .right_paren = .{ .left = "(" } } },
         .{ .name = "$", .type = .end },
     };
-    const table = try Table.init(a, &defines);
+    const table = try createTable(a, &defines);
     _ = table;
 
     return error.NotImplemented;
@@ -119,30 +122,26 @@ const Define = struct {
     type: OperatorKind,
 };
 
-const Table = struct {
-    fn init(a: Allocator, operators: []const Define) !Table {
-        for (operators) |*operator| {
-            debug.print("{*}: {s}", .{ operator, operator.name });
-        }
-
-        debug.begin("create operator precedence table");
-
-        const table = try RelationTable.init(a, operators);
-        defer table.deinit(a);
-        table.print();
-
-        debug.begin("create precedence graph");
-        var graph = try Graph.init(a, table);
-        defer graph.deinit(a);
-
-        graph.print();
-
-        debug.end("create precedence graph");
-
-        debug.end("create operator precedence table");
-        return undefined;
+fn createTable(a: Allocator, operators: []const Define) !FunctionTable {
+    for (operators) |*operator| {
+        debug.print("{*}: {s}", .{ operator, operator.name });
     }
-};
+    debug.begin("create operator precedence table");
+
+    const table = try RelationTable.init(a, operators);
+    defer table.deinit(a);
+    table.print();
+
+    var graph = try Graph.init(a, table);
+    defer graph.deinit(a);
+    graph.print();
+
+    const function_table = try FunctionTable.init(a, operators, graph);
+    function_table.print();
+
+    debug.end("create operator precedence table");
+    return function_table;
+}
 
 /// n * n の表の優先順位表
 const RelationTable = struct {
@@ -287,6 +286,15 @@ const Graph = struct {
             self.links.deinit(a);
         }
 
+        fn length(self: Node) usize {
+            var max_length: usize = 0;
+            for (self.links.items) |link| {
+                max_length = @max(max_length, link.length());
+            }
+
+            return max_length + 1;
+        }
+
         pub fn format(self: Node, comptime fmt: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             if (std.mem.eql(u8, fmt, "symbols")) {
                 try writer.writeAll("\"");
@@ -318,6 +326,7 @@ const Graph = struct {
     enables: Array(bool),
 
     fn init(a: Allocator, table: RelationTable) !Graph {
+        debug.begin("create precedence graph");
         const nodes = Array(Node).empty;
         const enables = Array(bool).empty;
         var graph: Graph = .{ .nodes = nodes, .enables = enables };
@@ -340,8 +349,6 @@ const Graph = struct {
         }
 
         for (table.items) |item| {
-            debug.print("item ({s}, {s}, {})", .{ item.left.name, item.right.name, item.precedence });
-            graph.print();
             switch (item.precedence) {
                 .none => {},
                 .equal => {
@@ -356,9 +363,8 @@ const Graph = struct {
                     try right_equals.put(a, item.right, right_array);
                 },
                 .higher => try graph.addEdge(a, .{ .f = item.left }, .{ .g = item.right }),
-                .lower => try graph.addEdge(a, .{ .g = item.left }, .{ .f = item.right }),
+                .lower => try graph.addEdge(a, .{ .g = item.right }, .{ .f = item.left }),
             }
-            graph.print();
         }
 
         for (left_equals.values()) |value| {
@@ -377,6 +383,7 @@ const Graph = struct {
             }
         }
 
+        debug.end("create precedence graph");
         return graph;
     }
 
@@ -407,7 +414,7 @@ const Graph = struct {
         unreachable;
     }
 
-    fn getIndex(self: *Graph, symbol: Symbol) usize {
+    fn getIndex(self: Graph, symbol: Symbol) usize {
         for (self.nodes.items, self.enables.items, 0..) |*node, enable, idx| {
             if (!enable) continue;
             for (node.symbols.items) |s| {
@@ -418,6 +425,11 @@ const Graph = struct {
         }
 
         unreachable;
+    }
+
+    fn getLength(self: Graph, symbol: Symbol) usize {
+        const index = self.getIndex(symbol);
+        return self.nodes.items[index].length();
     }
 
     fn contraction(self: *Graph, a: Allocator, left: Symbol, right: Symbol) !void {
@@ -453,6 +465,24 @@ const Graph = struct {
         try left_node.links.append(a, right_node);
     }
 
+    const Iterator = struct {
+        graph: *const Graph,
+        index: usize = 0,
+
+        fn next(self: *Iterator) ?Node {
+            while (self.index < self.graph.nodes.items.len) : (self.index += 1) {
+                if (self.graph.enables.items[self.index]) {
+                    return self.graph.nodes.items[self.index];
+                }
+            }
+            return null;
+        }
+    };
+
+    fn iterator(self: *const Graph) Iterator {
+        return .{ .graph = self };
+    }
+
     fn print(self: Graph) void {
         if (debug.enabled) {
             debug.begin("print precedence graph");
@@ -466,6 +496,63 @@ const Graph = struct {
                 std.debug.print("\n", .{});
             }
             debug.end("print precedence graph");
+        }
+    }
+};
+
+const FunctionTable = struct {
+    operators: []const Define,
+    f_predicates: []const usize,
+    g_predicates: []const usize,
+
+    fn init(a: Allocator, operators: []const Define, graph: Graph) !FunctionTable {
+        debug.begin("create precedence function table");
+        var f_predicates = try a.alloc(usize, operators.len);
+        var g_predicates = try a.alloc(usize, operators.len);
+
+        for (operators, 0..) |*operator, idx| {
+            f_predicates[idx] = graph.getLength(.{ .f = operator });
+            g_predicates[idx] = graph.getLength(.{ .g = operator });
+        }
+
+        debug.end("create precedence function table");
+        return .{
+            .operators = operators,
+            .f_predicates = f_predicates,
+            .g_predicates = g_predicates,
+        };
+    }
+
+    fn deinit(self: FunctionTable, a: Allocator) void {
+        a.free(self.f_predicates);
+        a.free(self.g_predicates);
+    }
+
+    fn print(self: FunctionTable) void {
+        if (debug.enabled) {
+            debug.begin("print function table");
+
+            debug.indent();
+            std.debug.print("op :", .{});
+            for (self.operators) |operator| {
+                std.debug.print(" {s: >3}", .{operator.name});
+            }
+            std.debug.print("\n", .{});
+
+            debug.indent();
+            std.debug.print("f  :", .{});
+            for (self.f_predicates) |predicate| {
+                std.debug.print(" {d: >3}", .{predicate});
+            }
+            std.debug.print("\n", .{});
+
+            debug.indent();
+            std.debug.print("g  :", .{});
+            for (self.g_predicates) |predicate| {
+                std.debug.print(" {d: >3}", .{predicate});
+            }
+            std.debug.print("\n", .{});
+            debug.end("print function table");
         }
     }
 };
