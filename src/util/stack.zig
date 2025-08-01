@@ -15,13 +15,13 @@ pub fn Stack(T: type) type {
         }
 
         pub fn push(self: *@This(), a: Allocator, token: T) !void {
-            debug.print("stack push: {} + {}", .{ self, token });
+            debug.printLn("stack push: {} + {}", .{ self, token });
             try self.array.append(a, token);
         }
 
         pub fn pop(self: *@This()) ?T {
             const token = self.array.pop();
-            debug.print("stack pop: {} - {?}", .{ self, token });
+            debug.printLn("stack pop: {} - {?}", .{ self, token });
             return token;
         }
 

@@ -13,6 +13,8 @@ test "basic add functionality" {
     try testing.expect(add(3, 7) == 10);
 }
 
+pub const utils = @import("./util.zig");
+
 /// 再帰下降構文解析法
 pub const recursive_descent = @import("./recursive_descent.zig");
 
@@ -37,7 +39,7 @@ test {
 }
 
 pub fn callParse() !void {
-    const utils = @import("./util.zig");
+    const debug = utils.debug;
     const ParseFn = *const fn (a: std.mem.Allocator, source: []const u8) utils.Language1.ParseError!utils.Language1.ParseTree;
     const parse_fns = [_]ParseFn{
         shunting_yard.parse,
@@ -47,7 +49,7 @@ pub fn callParse() !void {
         operator_precedence.parse,
     };
     const test_cases = utils.Language1.test_cases;
-    utils.debug.enabled = true;
+    debug.enabled = true;
 
     const allocator = std.heap.page_allocator;
 
@@ -56,7 +58,7 @@ pub fn callParse() !void {
             const source = test_case.source;
             const expected = test_case.expected;
 
-            utils.debug.print("source  : {s}", .{source});
+            debug.printLn("source  : {s}", .{source});
 
             var result = try parse_fn(allocator, source);
             defer result.deinit(allocator);
@@ -64,8 +66,8 @@ pub fn callParse() !void {
             const result_string = try std.fmt.allocPrint(allocator, "{}", .{result});
             defer allocator.free(result_string);
 
-            utils.debug.print("expected: {s}", .{expected});
-            utils.debug.print("result  : {s}", .{result_string});
+            debug.printLn("expected: {s}", .{expected});
+            debug.printLn("result  : {s}", .{result_string});
         }
     }
 }

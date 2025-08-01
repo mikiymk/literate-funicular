@@ -82,7 +82,7 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
 
     const table = createTable(a, &defines) catch |err| switch (err) {
         error.InvalidGrammar => {
-            debug.print("invalid grammar", .{});
+            debug.printLn("invalid grammar", .{});
             return error.InvalidSyntax;
         },
         else => |e| return e,
@@ -99,8 +99,8 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
     while (true) {
         const right_token = reader.peek();
         const left_token = stack.get();
-        debug.print("left token : {?}", .{left_token});
-        debug.print("right token: {?}", .{right_token});
+        debug.printLn("left token : {?}", .{left_token});
+        debug.printLn("right token: {?}", .{right_token});
 
         if (left_token == null and right_token == null) break;
         const precedence = table.get(left_token, right_token);
@@ -122,7 +122,7 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
             },
         }
 
-        debug.print("", .{});
+        debug.printLn("", .{});
     }
     debug.end("parse");
 
@@ -170,7 +170,7 @@ const Define = struct {
 
 fn createTable(a: Allocator, operators: []const Define) GrammarError!FunctionTable {
     for (operators) |*operator| {
-        debug.print("{*}: {s}", .{ operator, operator.name });
+        debug.printLn("{*}: {s}", .{ operator, operator.name });
     }
     debug.begin("create operator precedence table");
 
@@ -278,20 +278,20 @@ const RelationTable = struct {
         if (debug.enabled) {
             debug.begin("print operator precedence table");
             debug.indent();
-            std.debug.print("   ", .{});
+            debug.print("   ", .{});
             for (self.operators) |right| {
-                std.debug.print(" {s: <3}", .{right.name});
+                debug.print(" {s: <3}", .{right.name});
             }
-            std.debug.print("\n", .{});
+            debug.print("\n", .{});
 
             for (self.operators, 0..) |left, left_idx| {
                 debug.indent();
-                std.debug.print("{s: <3}", .{left.name});
+                debug.print("{s: <3}", .{left.name});
                 for (self.operators, 0..) |_, right_idx| {
                     const idx = left_idx * self.operators.len + right_idx;
-                    std.debug.print(" {s: <3}", .{self.items[idx].precedence.name()});
+                    debug.print(" {s: <3}", .{self.items[idx].precedence.name()});
                 }
-                std.debug.print("\n", .{});
+                debug.print("\n", .{});
             }
             debug.end("print operator precedence table");
         }
@@ -539,11 +539,11 @@ const Graph = struct {
             for (self.nodes.items, self.enables.items) |node, enabled| {
                 if (!enabled) continue;
                 debug.indent();
-                std.debug.print("{symbols} ->", .{node});
+                debug.print("{symbols} ->", .{node});
                 for (node.links.items) |link| {
-                    std.debug.print(" {symbols}", .{link});
+                    debug.print(" {symbols}", .{link});
                 }
-                std.debug.print("\n", .{});
+                debug.print("\n", .{});
             }
             debug.end("print precedence graph");
         }
@@ -612,25 +612,25 @@ const FunctionTable = struct {
             debug.begin("print function table");
 
             debug.indent();
-            std.debug.print("op :", .{});
+            debug.print("op :", .{});
             for (self.operators) |operator| {
-                std.debug.print(" {s: >3}", .{operator.name});
+                debug.print(" {s: >3}", .{operator.name});
             }
-            std.debug.print("\n", .{});
+            debug.print("\n", .{});
 
             debug.indent();
-            std.debug.print("f  :", .{});
+            debug.print("f  :", .{});
             for (self.f_predicates) |predicate| {
-                std.debug.print(" {d: >3}", .{predicate});
+                debug.print(" {d: >3}", .{predicate});
             }
-            std.debug.print("\n", .{});
+            debug.print("\n", .{});
 
             debug.indent();
-            std.debug.print("g  :", .{});
+            debug.print("g  :", .{});
             for (self.g_predicates) |predicate| {
-                std.debug.print(" {d: >3}", .{predicate});
+                debug.print(" {d: >3}", .{predicate});
             }
-            std.debug.print("\n", .{});
+            debug.print("\n", .{});
             debug.end("print function table");
         }
     }
