@@ -16,6 +16,10 @@ pub fn main() !void {
     try stdout.print("Run `zig build test` to run the tests.\n", .{});
 
     try bw.flush(); // Don't forget to flush!
+
+    lib.callParse() catch |err| {
+        std.debug.print("Error: {}\n", .{err});
+    };
 }
 
 test "simple test" {

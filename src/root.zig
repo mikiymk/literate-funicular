@@ -35,3 +35,37 @@ test {
     _ = precedence_climb;
     _ = operator_precedence;
 }
+
+pub fn callParse() !void {
+    const utils = @import("./util.zig");
+    const ParseFn = *const fn (a: std.mem.Allocator, source: []const u8) utils.Language1.ParseError!utils.Language1.ParseTree;
+    const parse_fns = [_]ParseFn{
+        shunting_yard.parse,
+        recursive_descent.parse,
+        recursive_descent_loop.parse,
+        precedence_climb.parse,
+        operator_precedence.parse,
+    };
+    const test_cases = utils.Language1.test_cases;
+    utils.debug.enabled = true;
+
+    const allocator = std.heap.page_allocator;
+
+    for (parse_fns) |parse_fn| {
+        for (test_cases) |test_case| {
+            const source = test_case.source;
+            const expected = test_case.expected;
+
+            utils.debug.print("source  : {s}", .{source});
+
+            var result = try parse_fn(allocator, source);
+            defer result.deinit(allocator);
+
+            const result_string = try std.fmt.allocPrint(allocator, "{}", .{result});
+            defer allocator.free(result_string);
+
+            utils.debug.print("expected: {s}", .{expected});
+            utils.debug.print("result  : {s}", .{result_string});
+        }
+    }
+}

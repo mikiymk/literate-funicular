@@ -3,7 +3,9 @@ const Allocator = std.mem.Allocator;
 
 /// オンにした場合のみ、出力する。
 pub var enabled = false;
-var indent_tags: [10][]const u8 = undefined;
+
+const indent_max = 20;
+var indent_tags: [indent_max][]const u8 = undefined;
 var indent_count: u8 = 0;
 
 pub fn indent() void {

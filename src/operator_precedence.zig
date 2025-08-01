@@ -59,13 +59,15 @@ const utils = @import("./util.zig");
 
 const Token = utils.Language1.Token;
 const TokenReader = utils.Language1.TokenReader;
+const OutputQueue = utils.Language1.OutputQueue;
 const ParseTree = utils.Language1.ParseTree;
 const ParseError = utils.Language1.ParseError;
+const Stack = utils.Stack;
 const debug = utils.debug;
 
-pub fn parse(a: Allocator, source: []const u8) !ParseTree {
-    _ = source;
+const GrammarError = ParseError || error{InvalidGrammar};
 
+pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
     const defines = [_]Define{
         .{ .name = "id", .type = .id },
         .{ .name = "+", .type = .{ .operator = .{ .associative = .left, .precedence = 10 } } },
@@ -77,10 +79,54 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
         .{ .name = ")", .type = .{ .right_paren = .{ .left = "(" } } },
         .{ .name = "$", .type = .end },
     };
-    const table = try createTable(a, &defines);
-    _ = table;
 
-    return error.NotImplemented;
+    const table = createTable(a, &defines) catch |err| switch (err) {
+        error.InvalidGrammar => {
+            debug.print("invalid grammar", .{});
+            return error.InvalidSyntax;
+        },
+        else => |e| return e,
+    };
+    defer table.deinit(a);
+
+    debug.begin("parse");
+    var reader = TokenReader.init(source);
+    var output = OutputQueue{};
+    defer output.deinit(a);
+    var stack = Stack(Token).empty;
+    defer stack.deinit(a);
+
+    while (true) {
+        const right_token = reader.peek();
+        const left_token = stack.get();
+        debug.print("left token : {?}", .{left_token});
+        debug.print("right token: {?}", .{right_token});
+
+        if (left_token == null and right_token == null) break;
+        const precedence = table.get(left_token, right_token);
+        switch (precedence) {
+            .none => {
+                return error.InvalidSyntax;
+            },
+            .equal => {
+                _ = reader.next();
+                _ = stack.pop();
+            },
+            .lower => {
+                _ = reader.next();
+                try stack.push(a, right_token.?);
+            },
+            .higher => {
+                _ = stack.pop();
+                try output.push(a, left_token.?);
+            },
+        }
+
+        debug.print("", .{});
+    }
+    debug.end("parse");
+
+    return output.toTree();
 }
 
 const OperatorKind = union(enum) {
@@ -122,7 +168,7 @@ const Define = struct {
     type: OperatorKind,
 };
 
-fn createTable(a: Allocator, operators: []const Define) !FunctionTable {
+fn createTable(a: Allocator, operators: []const Define) GrammarError!FunctionTable {
     for (operators) |*operator| {
         debug.print("{*}: {s}", .{ operator, operator.name });
     }
@@ -180,7 +226,7 @@ const RelationTable = struct {
         a.free(self.items);
     }
 
-    fn precedenceFromOperatorKind(left: OperatorKind, right: OperatorKind) !Prec {
+    fn precedenceFromOperatorKind(left: OperatorKind, right: OperatorKind) GrammarError!Prec {
         return switch (left) {
             .id => switch (right) {
                 .id => .none, // l:id ≠ r:id
@@ -287,6 +333,10 @@ const Graph = struct {
         }
 
         fn length(self: Node) usize {
+            if (self.links.items.len == 0) {
+                return 0;
+            }
+
             var max_length: usize = 0;
             for (self.links.items) |link| {
                 max_length = @max(max_length, link.length());
@@ -528,6 +578,35 @@ const FunctionTable = struct {
         a.free(self.g_predicates);
     }
 
+    fn indexOf(self: FunctionTable, token: ?Token) usize {
+        for (self.operators, 0..) |operator, index| {
+            if (token) |t| {
+                switch (operator.type) {
+                    .id => if (t.tokenType() == .number) return index,
+                    .operator, .left_paren, .right_paren => {
+                        if (std.mem.eql(u8, operator.name, t.value)) return index;
+                    },
+                    else => {},
+                }
+            } else {
+                if (operator.type == .end) return index;
+            }
+        }
+
+        unreachable;
+    }
+
+    fn get(self: FunctionTable, left: ?Token, right: ?Token) Prec {
+        const left_idx = self.indexOf(left);
+        const right_idx = self.indexOf(right);
+
+        const f = self.f_predicates[left_idx];
+        const g = self.g_predicates[right_idx];
+        if (f < g) return .lower;
+        if (f > g) return .higher;
+        return .equal;
+    }
+
     fn print(self: FunctionTable) void {
         if (debug.enabled) {
             debug.begin("print function table");
@@ -559,7 +638,7 @@ const FunctionTable = struct {
 
 test "operator precedence parsing" {
     const allocator = std.testing.allocator;
-    utils.debug.enabled = true;
+    utils.debug.enabled = false;
 
     const test_cases = utils.Language1.test_cases;
 
