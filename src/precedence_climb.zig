@@ -15,21 +15,21 @@ const debug = utils.debug;
 pub fn parse(a: Allocator, source: []const u8) !ParseTree {
     var input = TokenReader.init(source);
 
-    debug.begin("parsing");
+    debug.begin("構文解析");
+    // 最初の左辺を読み込み、最小の優先順位を0とする
     const tree = try parseExpr(a, &input);
-    debug.end("parsing");
+    debug.end("構文解析");
 
     return tree;
 }
 
 fn parseExpr(a: Allocator, input: *TokenReader) ParseError!ParseTree {
-    // 最初の左辺を読み込み、最小の優先順位を0とする
-    return parseExpr1(a, input, try parsePrim(a, input), 0);
+    return parseExpr2(a, input, try parsePrim(a, input), 0);
 }
 
-fn parseExpr1(a: Allocator, input: *TokenReader, lhs: ParseTree, min_precedence: u8) ParseError!ParseTree {
+fn parseExpr2(a: Allocator, input: *TokenReader, lhs: ParseTree, min_precedence: u8) ParseError!ParseTree {
     var lhs_tree = lhs;
-    debug.begin("expr");
+    debug.begin("Expr");
 
     // 先読み
     var lookahead = input.peek();
@@ -51,19 +51,21 @@ fn parseExpr1(a: Allocator, input: *TokenReader, lhs: ParseTree, min_precedence:
             if (!(token2_p > token1_p or (token2_p == token1_p and token2.associative() == .right))) break;
 
             // 現在の右辺を左辺として、再帰的に右辺を読み込む
-            rhs_tree = try parseExpr1(a, input, rhs_tree, if (token2_p > token1_p) token1_p + 1 else token1_p);
+            const precedence = if (token2_p > token1_p) token1_p + 1 else token1_p;
+            rhs_tree = try parseExpr2(a, input, rhs_tree, precedence);
         }
 
         // 左辺と右辺を結合し、次の演算子のために左辺にする
         lhs_tree = try ParseTree.initOperator(a, lhs_tree, rhs_tree, token1.toOperator());
     }
 
-    debug.end("expr");
+    debug.printLn("現在の構文解析木: {}", .{lhs_tree});
+    debug.end("Expr");
     return lhs_tree;
 }
 
 fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("prim-expr");
+    debug.begin("Prim-Expr");
     var tree: ParseTree = undefined;
 
     // トークンの種類で分岐
@@ -88,8 +90,8 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         else => return error.InvalidSyntax,
     }
 
-    debug.printLn("tree: {}", .{tree});
-    debug.end("prim-expr");
+    debug.printLn("現在の構文解析木: {}", .{tree});
+    debug.end("Prim-Expr");
     return tree;
 }
 

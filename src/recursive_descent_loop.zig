@@ -15,9 +15,9 @@ const ParseError = error{InvalidSyntax} || Allocator.Error;
 pub fn parse(a: Allocator, source: []const u8) !ParseTree {
     var input = TokenReader.init(source);
 
-    debug.begin("parsing");
+    debug.begin("構文解析");
     const tree = try parseAdd(a, &input);
-    debug.end("parsing");
+    debug.end("構文解析");
 
     return tree;
 }
@@ -30,7 +30,7 @@ pub fn parse(a: Allocator, source: []const u8) !ParseTree {
 // Prim -> ( Expr ) | num
 
 fn parseAdd(a: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("add-expr");
+    debug.begin("Add-Expr");
 
     // Mul
     var tree = try parseMul(a, input);
@@ -48,13 +48,13 @@ fn parseAdd(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         tree = try ParseTree.initOperator(a, tree, mul, token.toOperator());
     }
 
-    debug.printLn("tree: {}", .{tree});
-    debug.end("add-expr");
+    debug.printLn("現在の構文解析木: {}", .{tree});
+    debug.end("Add-Expr");
     return tree;
 }
 
 fn parseMul(a: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("mul-expr");
+    debug.begin("Mul-Expr");
 
     // Pow
     var tree = try parsePow(a, input);
@@ -72,19 +72,32 @@ fn parseMul(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         tree = try ParseTree.initOperator(a, tree, pow, token.toOperator());
     }
 
-    debug.printLn("tree: {}", .{tree});
-    debug.end("mul-expr");
+    debug.printLn("現在の構文解析木: {}", .{tree});
+    debug.end("Mul-Expr");
     return tree;
 }
 
+const PartialTree = struct {
+    token: Token,
+    prim: ParseTree,
+
+    pub fn format(
+        self: @This(),
+        _: []const u8,
+        _: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        try writer.print("({} {})", .{ self.token, self.prim });
+    }
+};
+
 fn parsePow(a: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("pow-expr");
+    debug.begin("Pow-Expr");
 
     // Prim
     var tree = try parsePrim(a, input);
 
-    const Tokens = struct { token: Token, prim: ParseTree };
-    var tokens_stack = Stack(Tokens).empty;
+    var tokens_stack = Stack(PartialTree).empty;
     defer tokens_stack.deinit(a);
 
     while (input.peek()) |token| {
@@ -100,7 +113,8 @@ fn parsePow(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         try tokens_stack.push(a, .{ .token = token, .prim = prim });
     }
 
-    var prev_tokens: ?Tokens = null;
+    // 右結合の演算子の構文木を作る
+    var prev_tokens: ?PartialTree = null;
     while (tokens_stack.pop()) |tokens| {
         const token = tokens.token;
         var prim = tokens.prim;
@@ -116,13 +130,13 @@ fn parsePow(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         tree = try ParseTree.initOperator(a, tree, pt.prim, pt.token.toOperator());
     }
 
-    debug.printLn("tree: {}", .{tree});
-    debug.end("pow-expr");
+    debug.printLn("現在の構文解析木: {}", .{tree});
+    debug.end("Pow-Expr");
     return tree;
 }
 
 fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
-    debug.begin("prim-expr");
+    debug.begin("Prim-Expr");
     var tree: ParseTree = undefined;
 
     // トークンの種類で分岐
@@ -137,9 +151,9 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         // 括弧
         .parenthesis => {
             // ( Expr )
-            try expect(input, "(");
+            try input.expect("(");
             tree = try parseAdd(a, input);
-            try expect(input, ")");
+            try input.expect(")");
         },
 
         // それ以外
@@ -147,14 +161,9 @@ fn parsePrim(a: Allocator, input: *TokenReader) ParseError!ParseTree {
         else => return error.InvalidSyntax,
     }
 
-    debug.printLn("tree: {}", .{tree});
-    debug.end("prim-expr");
+    debug.printLn("現在の構文解析木: {}", .{tree});
+    debug.end("Prim-Expr");
     return tree;
-}
-
-fn expect(input: *TokenReader, token_string: []const u8) ParseError!void {
-    const next_token = input.next() orelse return error.InvalidSyntax;
-    if (!next_token.is(token_string)) return error.InvalidSyntax;
 }
 
 test "recursive descent parsing" {

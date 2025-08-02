@@ -1,3 +1,5 @@
+//! ## ダイクストラの操車場アルゴリズム
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -9,121 +11,106 @@ const OutputQueue = utils.Language1.OutputQueue;
 const Token = utils.Language1.Token;
 const TokenReader = utils.Language1.TokenReader;
 const ParseTree = utils.Language1.ParseTree;
+const ParseError = utils.Language1.ParseError;
+const Stack = utils.Stack;
 
 /// 文字列を解析する
-pub fn parse(a: Allocator, source: []const u8) !ParseTree {
-
-    // 入力
+pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
     var input = TokenReader.init(source);
-
-    // 出力
     var output = OutputQueue{};
     defer output.deinit(a);
-
-    // スタック
-    var stack: utils.Stack(Token) = .empty;
+    var stack: Stack(Token) = .empty;
     defer stack.deinit(a);
 
-    debug.begin("parsing");
+    debug.printLn("入力文字列: {s}", .{source});
+    debug.begin("構文解析");
 
+    debug.begin("入力");
     while (input.next()) |o1| {
         // 入力から1つのトークンを取り出し、処理を行なう
-        debug.begin("process");
-        debug.printLn("read token: {}", .{o1});
+        debug.begin("入力の処理");
+        debug.printLn("トークンを読み込み: {}({})", .{ o1, o1.tokenType() });
 
-        switch (o1.tokenType()) {
-            // トークンの種類によって処理を分岐
+        try processToken(a, o1, &stack, &output);
 
-            // 数字
-            // そのまま出力
-            .number => try output.push(a, o1),
-
-            // 演算子
-            .operator => {
-                while (true) {
-                    // スタックトップが演算子でなければループを抜ける
-                    const o2 = stack.get() orelse break;
-                    if (o2.tokenType() != .operator) break;
-
-                    // 演算子の優先順位
-                    const o1_p = o1.precedence();
-                    const o2_p = o2.precedence();
-
-                    {
-                        // o2 > o1 か、o2 == o1 かつ 左結合 ならば、ループを続行する
-                        _ = !((o1_p < o2_p) or (o1_p == o2_p and o1.associative() == .left));
-
-                        // ↓反転
-
-                        // o2 < o1 か、o2 == o1 かつ 右結合 ならば、ループを抜ける
-                        _ = o1_p > o2_p or (o1_p == o2_p and o1.associative() != .left);
-                    }
-
-                    if (o1_p > o2_p or (o1_p == o2_p and o1.associative() != .left))
-                        break;
-
-                    // スタックトップを取り出して出力
-                    _ = stack.pop();
-                    try output.push(a, o2);
-                }
-
-                // 現在の入力をスタックに入れる
-                try stack.push(a, o1);
-            },
-
-            // 括弧
-            .parenthesis => {
-                if (o1.is("(")) {
-                    // 左括弧
-                    // スタックに入れる
-                    try stack.push(a, o1);
-                } else {
-                    // 右括弧
-                    while (true) {
-                        // スタックトップを読み出す
-                        // スタックが空なら構文エラー
-                        const stack_top = stack.get() orelse return error.InvalidSyntax;
-                        if (!stack_top.is("(")) {
-                            // スタックトップが左括弧でない
-                            // スタックトップを取り出して出力
-                            _ = stack.pop();
-                            try output.push(a, stack_top);
-                        } else {
-                            // スタックトップが左括弧
-                            // スタックトップを取り出す
-                            _ = stack.pop();
-                            break;
-                        }
-                    }
-                }
-            },
-        }
-
-        debug.end("process");
+        debug.end("入力の処理");
     }
+    debug.end("入力");
 
-    debug.printLn("read token: none", .{});
-    // 入力が終わった
-
+    debug.begin("残りスタックの処理");
     // スタックに残ったものを順番に出力
     while (stack.pop()) |token| {
         // スタックに左括弧が残っていたら構文エラー
         if (token.is("(")) return error.InvalidSyntax;
         try output.push(a, token);
     }
+    debug.end("残りスタックの処理");
 
-    debug.end("process");
+    debug.end("構文解析");
 
     return output.toTree();
+}
+
+fn processToken(a: Allocator, o1: Token, stack: *Stack(Token), output: *OutputQueue) ParseError!void {
+    // トークンの種類によって処理を分岐
+    switch (o1.tokenType()) {
+        // 数字
+        .number => try output.push(a, o1),
+
+        // 演算子
+        .operator => {
+            while (true) {
+                // スタックトップが演算子でなければループを抜ける
+                const o2 = stack.get() orelse break;
+                if (o2.tokenType() != .operator) break;
+
+                // 演算子の優先順位
+                const o1_p = o1.precedence();
+                const o2_p = o2.precedence();
+
+                // o2 > o1 か、o2 == o1 かつ 左結合 ならば、ループを続行する
+                if (!((o1_p < o2_p) or (o1_p == o2_p and o1.associative() == .left)))
+                    break;
+
+                // スタックトップを取り出して出力
+                _ = stack.pop();
+                try output.push(a, o2);
+            }
+
+            // 現在の入力をスタックに入れる
+            try stack.push(a, o1);
+        },
+
+        // 括弧
+        .parenthesis => {
+            if (o1.is("(")) { // 左括弧
+                // スタックに入れる
+                try stack.push(a, o1);
+            } else { // 右括弧
+                while (true) {
+                    // スタックトップを読み出す
+                    // スタックが空なら構文エラー
+                    const stack_top = stack.get() orelse return error.InvalidSyntax;
+                    if (!stack_top.is("(")) { // スタックトップが左括弧でない
+                        // スタックトップを取り出して出力
+                        _ = stack.pop();
+                        try output.push(a, stack_top);
+                    } else { // スタックトップが左括弧
+                        // スタックトップを取り出し、次の入力へ
+                        _ = stack.pop();
+                        break;
+                    }
+                }
+            }
+        },
+    }
 }
 
 test "shunting yard algorithm" {
     const allocator = std.testing.allocator;
     utils.debug.enabled = false;
 
-    const test_cases = utils.Language1.test_cases;
-
-    for (test_cases) |test_case| {
+    for (utils.Language1.test_cases) |test_case| {
         const source = test_case.source;
         const expected = test_case.expected;
 

@@ -7,6 +7,7 @@ const Stack = util.Stack;
 
 pub const ParseError = error{InvalidSyntax} || Allocator.Error;
 
+/// 演算子の種類
 pub const Operator = enum {
     add,
     sub,
@@ -14,44 +15,51 @@ pub const Operator = enum {
     div,
     pow,
 
-    pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        const str = switch (self) {
+    pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        try writer.writeAll(switch (self) {
             .add => "+",
             .sub => "-",
             .mul => "*",
             .div => "/",
             .pow => "^",
-        };
-
-        try writer.writeAll(str);
+        });
     }
 };
 
+/// 構文解析の結果の抽象構文木
 pub const ParseTree = union(enum) {
-    num: []const u8,
-    operator: struct { left: *ParseTree, right: *ParseTree, op: Operator },
+    num: usize,
+    bi_op: BinaryOperator,
+
+    const BinaryOperator = struct {
+        left: *ParseTree,
+        right: *ParseTree,
+        operator: Operator,
+    };
 
     pub fn initNumber(token: Token) ParseTree {
-        return .{ .num = token.value };
+        const number = std.fmt.parseUnsigned(usize, token.value, 10) catch |err|
+            @panic(@errorName(err));
+        return ParseTree{ .num = number };
     }
 
-    pub fn initOperator(a: Allocator, left: ParseTree, right: ParseTree, op: Operator) Allocator.Error!ParseTree {
+    pub fn initOperator(a: Allocator, left: ParseTree, right: ParseTree, operator: Operator) Allocator.Error!ParseTree {
         const left_ptr = try a.create(ParseTree);
         const right_ptr = try a.create(ParseTree);
         left_ptr.* = left;
         right_ptr.* = right;
 
-        return .{ .operator = .{
+        return ParseTree{ .bi_op = .{
             .left = left_ptr,
             .right = right_ptr,
-            .op = op,
+            .operator = operator,
         } };
     }
 
     pub fn deinit(self: *ParseTree, a: Allocator) void {
         switch (self.*) {
             .num => {},
-            .operator => |op| {
+            .bi_op => |op| {
                 op.left.deinit(a);
                 op.right.deinit(a);
                 a.destroy(op.left);
@@ -60,14 +68,15 @@ pub const ParseTree = union(enum) {
         }
     }
 
-    pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
-            .num => |num| try writer.print("{s}", .{num}),
-            .operator => |op| try writer.print("({} {} {})", .{ op.left, op.op, op.right }),
+            .num => |num| try writer.print("{d}", .{num}),
+            .bi_op => |op| try writer.print("({} {} {})", .{ op.left, op.operator, op.right }),
         }
     }
 };
 
+/// 構文の最小単位
 pub const Token = struct {
     value: []const u8,
     position: usize,
@@ -76,6 +85,14 @@ pub const Token = struct {
         number,
         operator,
         parenthesis,
+
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            switch (self) {
+                .number => try writer.writeAll("数値"),
+                .operator => try writer.writeAll("演算子"),
+                .parenthesis => try writer.writeAll("括弧"),
+            }
+        }
     };
 
     const Direction = enum { left, right };
@@ -131,10 +148,7 @@ pub const Token = struct {
     }
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        switch (self.tokenType()) {
-            .number => try writer.print("{s}", .{self.value}),
-            inline else => try writer.print("\"{s}\"", .{self.value}),
-        }
+        try writer.print("{s}({})", .{ self.value, self.tokenType() });
     }
 };
 
@@ -197,70 +211,79 @@ pub const TokenReader = struct {
         const token = Token.init(self.source[start..end], start);
         return token;
     }
+
+    pub fn expect(self: *TokenReader, string: []const u8) ParseError!void {
+        const next_token = self.peek() orelse return error.InvalidSyntax;
+        if (!next_token.is(string)) return error.InvalidSyntax;
+        _ = self.next();
+    }
 };
 
+/// 逆ポーランド記法から構文木を構築する
 pub const OutputQueue = struct {
-    array: Stack(ParseTree) = .empty,
+    stack: Stack(ParseTree) = .empty,
 
     pub fn deinit(self: *OutputQueue, a: Allocator) void {
-        self.array.deinit(a);
+        self.stack.deinit(a);
     }
 
     pub fn push(self: *OutputQueue, a: Allocator, token: Token) ParseError!void {
-        debug.printLn("output: {}", .{token});
+        debug.printLn("出力に追加: {}", .{token});
 
         if (token.tokenType() == .operator) {
-            const right = self.array.pop() orelse return error.InvalidSyntax;
-            const left = self.array.pop() orelse return error.InvalidSyntax;
+            const right = self.stack.pop() orelse return error.InvalidSyntax;
+            const left = self.stack.pop() orelse return error.InvalidSyntax;
             const op = token.toOperator();
             const tree = try ParseTree.initOperator(a, left, right, op);
-            try self.array.push(a, tree);
+            try self.stack.push(a, tree);
         } else {
-            try self.array.push(a, ParseTree.initNumber(token));
+            try self.stack.push(a, ParseTree.initNumber(token));
         }
     }
 
     pub fn toTree(self: *OutputQueue) !ParseTree {
-        return self.array.pop() orelse return error.InvalidSyntax;
+        return self.stack.pop() orelse return error.InvalidSyntax;
     }
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{}", .{self.array});
+        try writer.print("{}", .{self.stack});
     }
 };
 
-pub const TestCase = struct { source: []const u8, expected: []const u8 };
+pub const TestCase = struct {
+    source: []const u8,
+    expected: []const u8,
+};
 pub const test_cases = [_]TestCase{
-    .{
-        .source = "10",
-        .expected = "10",
-    },
-    .{
-        .source = "1 + 2",
-        .expected = "(1 + 2)",
-    },
-    .{
-        .source = "1 * 2",
-        .expected = "(1 * 2)",
-    },
-    .{
-        .source = "1 ^ 2",
-        .expected = "(1 ^ 2)",
-    },
-    .{
-        .source = "1 + 2 * (3 - 4)",
-        .expected = "(1 + (2 * (3 - 4)))",
-    },
-    .{
-        .source = "1 + 2 + 3 - 4 + 5",
-        .expected = "((((1 + 2) + 3) - 4) + 5)",
-    },
-    .{
-        .source = "1 ^ 2 ^ 3",
-        .expected = "(1 ^ (2 ^ 3))",
-    },
-    .{
-        .source = "1 + (2 + 3) / (4 - 5) ^ 6",
-        .expected = "(1 + ((2 + 3) / ((4 - 5) ^ 6)))",
-    },
+    .{ .source = "10", .expected = "10" },
+    .{ .source = "1 + 2", .expected = "(1 + 2)" },
+    .{ .source = "1 - 2", .expected = "(1 - 2)" },
+    .{ .source = "1 * 2", .expected = "(1 * 2)" },
+    .{ .source = "1 / 2", .expected = "(1 / 2)" },
+    .{ .source = "1 ^ 2", .expected = "(1 ^ 2)" },
+    .{ .source = "1 + 2 + 3", .expected = "((1 + 2) + 3)" },
+    .{ .source = "1 + 2 * 3", .expected = "(1 + (2 * 3))" },
+    .{ .source = "1 + 2 ^ 3", .expected = "(1 + (2 ^ 3))" },
+    .{ .source = "1 * 2 + 3", .expected = "((1 * 2) + 3)" },
+    .{ .source = "1 * 2 * 3", .expected = "((1 * 2) * 3)" },
+    .{ .source = "1 * 2 ^ 3", .expected = "(1 * (2 ^ 3))" },
+    .{ .source = "1 ^ 2 + 3", .expected = "((1 ^ 2) + 3)" },
+    .{ .source = "1 ^ 2 * 3", .expected = "((1 ^ 2) * 3)" },
+    .{ .source = "1 ^ 2 ^ 3", .expected = "(1 ^ (2 ^ 3))" },
+    .{ .source = "1 - 2 + 3 - 4 + 5", .expected = "((((1 - 2) + 3) - 4) + 5)" },
+    .{ .source = "1 / 2 * 3 * 4 / 5", .expected = "((((1 / 2) * 3) * 4) / 5)" },
+    .{ .source = "1 ^ 2 ^ 3 ^ 4 ^ 5", .expected = "(1 ^ (2 ^ (3 ^ (4 ^ 5))))" },
+    .{ .source = "(((((((((1))) + (((((2)))))))))))", .expected = "(1 + 2)" },
+    .{ .source = "(1 + 2) * 3", .expected = "((1 + 2) * 3)" },
+    .{ .source = "1 + 2 * (3 - 4)", .expected = "(1 + (2 * (3 - 4)))" },
+    .{ .source = "1 + (2 + 3) / (4 - 5) ^ 6", .expected = "(1 + ((2 + 3) / ((4 - 5) ^ 6)))" },
+    .{ .source = "20 - 5 + 3 * (8 / 2) ^ (1 + 1) / 2", .expected = "((20 - 5) + ((3 * ((8 / 2) ^ (1 + 1))) / 2))" },
+};
+pub const error_cases = [_][]const u8{
+    "1 2",
+    "1 +",
+    "(1 + 2",
+    "1 + 2)",
+    "+",
+    "",
 };

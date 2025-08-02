@@ -17,3 +17,12 @@ pub fn printArray(comptime T: type, array: []const T, writer: anytype) !void {
         follow = true;
     }
 }
+
+pub fn typeName(T: type) []const u8 {
+    const full_name = @typeName(T);
+    if (std.mem.lastIndexOfScalar(u8, full_name, '.')) |index| {
+        return full_name[index + 1 ..];
+    } else {
+        return full_name;
+    }
+}

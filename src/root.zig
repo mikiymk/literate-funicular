@@ -38,36 +38,11 @@ test {
     _ = operator_precedence;
 }
 
-pub fn callParse() !void {
-    const debug = utils.debug;
-    const ParseFn = *const fn (a: std.mem.Allocator, source: []const u8) utils.Language1.ParseError!utils.Language1.ParseTree;
-    const parse_fns = [_]ParseFn{
-        shunting_yard.parse,
-        recursive_descent.parse,
-        recursive_descent_loop.parse,
-        precedence_climb.parse,
-        operator_precedence.parse,
-    };
-    const test_cases = utils.Language1.test_cases;
-    debug.enabled = true;
-
-    const allocator = std.heap.page_allocator;
-
-    for (parse_fns) |parse_fn| {
-        for (test_cases) |test_case| {
-            const source = test_case.source;
-            const expected = test_case.expected;
-
-            debug.printLn("source  : {s}", .{source});
-
-            var result = try parse_fn(allocator, source);
-            defer result.deinit(allocator);
-
-            const result_string = try std.fmt.allocPrint(allocator, "{}", .{result});
-            defer allocator.free(result_string);
-
-            debug.printLn("expected: {s}", .{expected});
-            debug.printLn("result  : {s}", .{result_string});
-        }
-    }
-}
+pub const ParseFn = *const fn (a: std.mem.Allocator, source: []const u8) utils.Language1.ParseError!utils.Language1.ParseTree;
+pub const parse_fns = [_]ParseFn{
+    shunting_yard.parse,
+    recursive_descent.parse,
+    recursive_descent_loop.parse,
+    precedence_climb.parse,
+    operator_precedence.parse,
+};

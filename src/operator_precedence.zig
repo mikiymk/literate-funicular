@@ -50,6 +50,14 @@
 //!
 //! ## 演算子優先順位法のアルゴリズム
 //!
+//! 1. 入力の最後尾に`$`を追加する。
+//! 2. スタックに`$`を入れる。
+//! 3. `a`と`b`がどちらも`$`になるまで、繰り返す。
+//!    1. 入力の先頭を`a`、スタックの先頭を`b`とする。
+//!    2. `a`と`b`の優先関係によって分岐する。
+//!       1. `a ⋖ b`の場合、スタックの先頭を出し、出力する。
+//!       2. `a ⋗ b`のとき、入力の先頭を出し、スタックに入れる。
+//!       3. `a ≐ b`のとき、スタックの先頭と入力を1つずつ出し、破棄する。
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -89,7 +97,7 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
     };
     defer table.deinit(a);
 
-    debug.begin("parse");
+    debug.begin("構文解析");
     var reader = TokenReader.init(source);
     var output = OutputQueue{};
     defer output.deinit(a);
@@ -97,10 +105,11 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
     defer stack.deinit(a);
 
     while (true) {
+        debug.begin("入力処理");
         const right_token = reader.peek();
         const left_token = stack.get();
-        debug.printLn("left token : {?}", .{left_token});
-        debug.printLn("right token: {?}", .{right_token});
+        debug.printLn("入力のトップ    : {?}", .{left_token});
+        debug.printLn("スタックのトップ: {?}", .{right_token});
 
         if (left_token == null and right_token == null) break;
         const precedence = table.get(left_token, right_token);
@@ -122,9 +131,9 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
             },
         }
 
-        debug.printLn("", .{});
+        debug.end("入力処理");
     }
-    debug.end("parse");
+    debug.end("構文解析");
 
     return output.toTree();
 }
@@ -140,7 +149,7 @@ const OperatorKind = union(enum) {
     end: void,
 };
 
-const Prec = enum {
+const Precedence = enum {
     none,
     /// - LOWER_PRECEDENCE: ⋖ (優先順位を譲る)
     lower,
@@ -169,10 +178,7 @@ const Define = struct {
 };
 
 fn createTable(a: Allocator, operators: []const Define) GrammarError!FunctionTable {
-    for (operators) |*operator| {
-        debug.printLn("{*}: {s}", .{ operator, operator.name });
-    }
-    debug.begin("create operator precedence table");
+    debug.begin("演算子優先順位表の作成");
 
     const table = try RelationTable.init(a, operators);
     defer table.deinit(a);
@@ -185,7 +191,7 @@ fn createTable(a: Allocator, operators: []const Define) GrammarError!FunctionTab
     const function_table = try FunctionTable.init(a, operators, graph);
     function_table.print();
 
-    debug.end("create operator precedence table");
+    debug.end("演算子優先順位表の作成");
     return function_table;
 }
 
@@ -194,14 +200,14 @@ const RelationTable = struct {
     const Item = struct {
         left: *const Define,
         right: *const Define,
-        precedence: Prec,
+        precedence: Precedence,
     };
 
     operators: []const Define,
     items: []const Item,
 
     fn init(a: Allocator, operators: []const Define) !RelationTable {
-        debug.begin("create precedence table");
+        debug.begin("演算子優先順位関係表の作成");
         const table = try a.alloc(Item, operators.len * operators.len);
 
         for (operators, 0..) |*left, left_idx| {
@@ -215,7 +221,7 @@ const RelationTable = struct {
             }
         }
 
-        debug.end("create precedence table");
+        debug.end("演算子優先順位関係表の作成");
         return .{
             .items = table,
             .operators = operators,
@@ -226,7 +232,7 @@ const RelationTable = struct {
         a.free(self.items);
     }
 
-    fn precedenceFromOperatorKind(left: OperatorKind, right: OperatorKind) GrammarError!Prec {
+    fn precedenceFromOperatorKind(left: OperatorKind, right: OperatorKind) GrammarError!Precedence {
         return switch (left) {
             .id => switch (right) {
                 .id => .none, // l:id ≠ r:id
@@ -276,7 +282,7 @@ const RelationTable = struct {
 
     fn print(self: RelationTable) void {
         if (debug.enabled) {
-            debug.begin("print operator precedence table");
+            debug.begin("演算子優先順位関係表の出力");
             debug.indent();
             debug.print("   ", .{});
             for (self.operators) |right| {
@@ -293,7 +299,7 @@ const RelationTable = struct {
                 }
                 debug.print("\n", .{});
             }
-            debug.end("print operator precedence table");
+            debug.end("演算子優先順位関係表の出力");
         }
     }
 };
@@ -311,8 +317,8 @@ const Graph = struct {
 
         pub fn format(self: Symbol, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             switch (self) {
-                .f => try writer.print("f({s})", .{self.f.name}),
-                .g => try writer.print("g({s})", .{self.g.name}),
+                .f => try writer.print("f:{s}", .{self.f.name}),
+                .g => try writer.print("g:{s}", .{self.g.name}),
             }
         }
     };
@@ -376,7 +382,7 @@ const Graph = struct {
     enables: Array(bool),
 
     fn init(a: Allocator, table: RelationTable) !Graph {
-        debug.begin("create precedence graph");
+        debug.begin("演算子優先順位関係グラフの作成");
         const nodes = Array(Node).empty;
         const enables = Array(bool).empty;
         var graph: Graph = .{ .nodes = nodes, .enables = enables };
@@ -433,7 +439,7 @@ const Graph = struct {
             }
         }
 
-        debug.end("create precedence graph");
+        debug.end("演算子優先順位関係グラフの作成");
         return graph;
     }
 
@@ -535,7 +541,7 @@ const Graph = struct {
 
     fn print(self: Graph) void {
         if (debug.enabled) {
-            debug.begin("print precedence graph");
+            debug.begin("演算子優先順位関係グラフの出力");
             for (self.nodes.items, self.enables.items) |node, enabled| {
                 if (!enabled) continue;
                 debug.indent();
@@ -545,7 +551,7 @@ const Graph = struct {
                 }
                 debug.print("\n", .{});
             }
-            debug.end("print precedence graph");
+            debug.end("演算子優先順位関係グラフの出力");
         }
     }
 };
@@ -556,7 +562,7 @@ const FunctionTable = struct {
     g_predicates: []const usize,
 
     fn init(a: Allocator, operators: []const Define, graph: Graph) !FunctionTable {
-        debug.begin("create precedence function table");
+        debug.begin("演算子優先順位関数表の作成");
         var f_predicates = try a.alloc(usize, operators.len);
         var g_predicates = try a.alloc(usize, operators.len);
 
@@ -565,7 +571,7 @@ const FunctionTable = struct {
             g_predicates[idx] = graph.getLength(.{ .g = operator });
         }
 
-        debug.end("create precedence function table");
+        debug.end("演算子優先順位関数表の作成");
         return .{
             .operators = operators,
             .f_predicates = f_predicates,
@@ -596,7 +602,7 @@ const FunctionTable = struct {
         unreachable;
     }
 
-    fn get(self: FunctionTable, left: ?Token, right: ?Token) Prec {
+    fn get(self: FunctionTable, left: ?Token, right: ?Token) Precedence {
         const left_idx = self.indexOf(left);
         const right_idx = self.indexOf(right);
 
@@ -609,7 +615,7 @@ const FunctionTable = struct {
 
     fn print(self: FunctionTable) void {
         if (debug.enabled) {
-            debug.begin("print function table");
+            debug.begin("演算子優先順位関数表の出力");
 
             debug.indent();
             debug.print("op :", .{});
@@ -631,7 +637,7 @@ const FunctionTable = struct {
                 debug.print(" {d: >3}", .{predicate});
             }
             debug.print("\n", .{});
-            debug.end("print function table");
+            debug.end("演算子優先順位関数表の出力");
         }
     }
 };
