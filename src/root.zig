@@ -5,14 +5,6 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub export fn add(a: i32, b: i32) i32 {
-    return a + b;
-}
-
-test "basic add functionality" {
-    try testing.expect(add(3, 7) == 10);
-}
-
 pub const utils = @import("./util.zig");
 
 /// 再帰下降構文解析法
@@ -30,12 +22,21 @@ pub const precedence_climb = @import("./precedence_climb.zig");
 /// テーブルを使う
 pub const operator_precedence = @import("./operator_precedence.zig");
 
+pub const ll_1 = @import("./ll_1.zig");
+
 test {
     _ = shunting_yard;
     _ = recursive_descent;
     _ = recursive_descent_loop;
     _ = precedence_climb;
     _ = operator_precedence;
+    _ = ll_1;
+
+    _ = utils.Language1;
+    _ = utils.Stack;
+    _ = utils.Queue;
+    _ = utils.Set;
+    _ = utils.AutoSet;
 }
 
 pub const ParseFn = *const fn (a: std.mem.Allocator, source: []const u8) utils.Language1.ParseError!utils.Language1.ParseTree;
@@ -45,4 +46,5 @@ pub const parse_fns = [_]ParseFn{
     recursive_descent_loop.parse,
     precedence_climb.parse,
     operator_precedence.parse,
+    ll_1.parse,
 };

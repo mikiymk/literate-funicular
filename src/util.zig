@@ -4,12 +4,25 @@ const Allocator = std.mem.Allocator;
 pub const debug = @import("./util/debug.zig");
 pub const Stack = @import("./util/stack.zig").Stack;
 pub const Queue = @import("./util/queue.zig").Queue;
+pub const Set = @import("./util/set.zig").Set;
+pub const AutoSet = @import("./util/set.zig").AutoSet;
 
 pub const Language1 = @import("./util/lang-1.zig");
 
 pub fn printArray(comptime T: type, array: []const T, writer: anytype) !void {
     var follow = false;
     for (array) |item| {
+        if (follow) {
+            try writer.print(", ", .{});
+        }
+        try writer.print("{}", .{item});
+        follow = true;
+    }
+}
+
+pub fn printIterator(iterator: anytype, writer: anytype) !void {
+    var follow = false;
+    while (iterator.next()) |item| {
         if (follow) {
             try writer.print(", ", .{});
         }

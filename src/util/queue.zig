@@ -54,7 +54,7 @@ pub fn Queue(T: type) type {
                 try util.printArray(T, self.buf[self.head..(self.head + self.count)], writer);
             } else {
                 try util.printArray(T, self.buf[self.head..], writer);
-                writer.print(", ", .{});
+                try writer.print(", ", .{});
                 try util.printArray(T, self.buf[0..(self.head + self.count - self.buf.len)], writer);
             }
         }
