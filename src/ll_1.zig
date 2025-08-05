@@ -12,6 +12,8 @@ const ParseError = utils.Language1.ParseError;
 const Stack = utils.Stack;
 const Set = utils.Set;
 const AutoSet = utils.AutoSet;
+const Map = utils.Map;
+const AutoMap = utils.AutoMap;
 const debug = utils.debug;
 
 const GrammarError = ParseError || error{InvalidGrammar};
@@ -56,11 +58,67 @@ const Term = struct {
     }
 };
 
+const TermOrEmpty = union(enum) {
+    term: Term,
+    empty: void,
+
+    pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        switch (self) {
+            .term => |t| try writer.writeAll(t.name),
+            .empty => try writer.writeAll("empty"),
+        }
+    }
+};
+
+const TermOrEnd = union(enum) {
+    term: Term,
+    end: void,
+
+    pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        switch (self) {
+            .term => |t| try writer.writeAll(t.name),
+            .end => try writer.writeAll("$"),
+        }
+    }
+};
+
 const NTerm = struct {
     name: []const u8,
 
     pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.writeAll(self.name);
+    }
+};
+
+const TermContext = struct {
+    pub fn hash(_: @This(), t: anytype) u64 {
+        return std.hash_map.hashString(t.name);
+    }
+
+    pub fn eql(_: @This(), l: anytype, r: @TypeOf(l)) bool {
+        return std.hash_map.eqlString(l.name, r.name);
+    }
+};
+
+const ExTermContext = struct {
+    pub fn hash(_: @This(), v: anytype) u64 {
+        const Tag = std.meta.Tag(@TypeOf(v));
+        var h = std.hash.Wyhash.init(0);
+        h.update(std.mem.asBytes(&@as(Tag, v)));
+        switch (v) {
+            .term => |t| h.update(t.name),
+            else => {},
+        }
+        return h.final();
+    }
+
+    pub fn eql(_: @This(), l: anytype, r: @TypeOf(l)) bool {
+        const Tag = std.meta.Tag(@TypeOf(l));
+        if (@as(Tag, l) != @as(Tag, r)) return false;
+        return switch (l) {
+            .term => std.hash_map.eqlString(l.term.name, r.term.name),
+            else => true,
+        };
     }
 };
 
@@ -74,23 +132,8 @@ const Define = struct {
     right: []const Symbol,
 };
 
-const TermSet = Set(Term, struct {
-    pub fn hash(_: @This(), t: Term) u64 {
-        return std.hash_map.hashString(t.name);
-    }
-    pub fn eql(_: @This(), l: Term, r: Term) bool {
-        return std.hash_map.eqlString(l.name, r.name);
-    }
-});
-
-const NTermSet = Set(NTerm, struct {
-    pub fn hash(_: @This(), t: NTerm) u64 {
-        return std.hash_map.hashString(t.name);
-    }
-    pub fn eql(_: @This(), l: NTerm, r: NTerm) bool {
-        return std.hash_map.eqlString(l.name, r.name);
-    }
-});
+const TermSet = Set(Term, TermContext);
+const NTermSet = Set(NTerm, TermContext);
 
 const expr = NTerm{ .name = "Expr" };
 const add_expr = NTerm{ .name = "Add" };
@@ -117,7 +160,7 @@ fn createTable(a: Allocator, defines: []const Define) GrammarError!LLTable {
     debug.printLn("終端記号  : {}", .{term_set});
     debug.printLn("非終端記号: {}", .{non_term_set});
 
-    var first_sets = try createFirstSets(a, defines, term_set, non_term_set);
+    var first_sets = try FirstSets.init(a, defines);
     defer first_sets.deinit(a);
 
     var follow_sets = try createFollowSets(a, defines, term_set, non_term_set, first_sets);
@@ -152,18 +195,6 @@ fn createSymbolSet(a: Allocator, defines: []const Define) Allocator.Error!struct
     return .{ term_set, non_term_set };
 }
 
-fn createFirstSets(a: Allocator, defines: []const Define, term_set: TermSet, non_term_set: NTermSet) Allocator.Error!FirstSets {
-    debug.begin("First集合の作成");
-    const first_sets: FirstSets = undefined;
-    _ = a;
-    _ = defines;
-    _ = term_set;
-    _ = non_term_set;
-
-    debug.end("First集合の作成");
-    return first_sets;
-}
-
 fn createFollowSets(a: Allocator, defines: []const Define, term_set: TermSet, non_term_set: NTermSet, first_sets: FirstSets) Allocator.Error!FollowSets {
     debug.begin("First集合の作成");
     const follow_sets: FollowSets = undefined;
@@ -192,11 +223,77 @@ fn createLLTable(a: Allocator, defines: []const Define, term_set: TermSet, non_t
 }
 
 const FirstSets = struct {
-    const empty = @This(){};
+    const FirstSet = Set(TermOrEmpty, ExTermContext);
+    const NonTermMap = Map(NTerm, FirstSet, TermContext);
 
-    pub fn deinit(self: @This(), a: Allocator) void {
-        _ = self;
-        _ = a;
+    non_term_first_sets: NonTermMap,
+
+    fn init(a: Allocator, defines: []const Define) Allocator.Error!@This() {
+        debug.begin("First集合の作成");
+
+        var sets = FirstSets{ .non_term_first_sets = .empty };
+
+        while (true) {
+            var updated = false;
+            for (defines) |define| {
+                if (define.right.len == 0) {
+                    updated = try sets.add(a, define.left, .empty) or updated;
+                    continue;
+                }
+                for (define.right) |symbol| {
+                    switch (symbol) {
+                        .term => |term| {
+                            updated = try sets.add(a, define.left, .{ .term = term }) or updated;
+                            break;
+                        },
+                        .n_term => |n_term| {
+                            const set = sets.non_term_first_sets.get(n_term) orelse FirstSet.empty;
+                            var iter = set.iterator();
+                            var has_empty = false;
+                            while (iter.next()) |term| {
+                                updated = try sets.add(a, define.left, term.*) or updated;
+                                has_empty = has_empty or term.* == .empty;
+                            }
+                            if (!has_empty) break;
+                        },
+                    }
+                }
+            }
+
+            debug.printLn("First集合: {}", .{sets.non_term_first_sets});
+
+            if (!updated) break;
+        }
+
+        debug.end("First集合の作成");
+        return sets;
+    }
+
+    pub fn deinit(self: *@This(), a: Allocator) void {
+        self.non_term_first_sets.deinit(a);
+    }
+
+    fn add(self: *@This(), a: Allocator, n_term: NTerm, term: TermOrEmpty) Allocator.Error!bool {
+        var first_set = self.non_term_first_sets.get(n_term) orelse FirstSet.empty;
+        const prev_count = first_set.count();
+        try first_set.insert(a, term);
+        try self.non_term_first_sets.insert(a, n_term, first_set);
+        return prev_count != first_set.count();
+    }
+
+    fn get(self: @This(), a: Allocator, symbols: []const Symbol) FirstSet {
+        for (symbols) |symbol| {
+            switch (symbol) {
+                .n_term => |n_term| {
+                    return self.non_term_first_sets.get(n_term) orelse FirstSet.empty;
+                },
+                .term => |term| {
+                    var set = FirstSet.empty;
+                    try set.insert(a, .{ .term = term });
+                    return set;
+                },
+            }
+        }
     }
 };
 

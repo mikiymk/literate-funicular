@@ -1,13 +1,15 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const debug = @import("./util/debug.zig");
-pub const Stack = @import("./util/stack.zig").Stack;
-pub const Queue = @import("./util/queue.zig").Queue;
-pub const Set = @import("./util/set.zig").Set;
-pub const AutoSet = @import("./util/set.zig").AutoSet;
+pub const debug = @import("util/debug.zig");
+pub const Stack = @import("util/stack.zig").Stack;
+pub const Queue = @import("util/queue.zig").Queue;
+pub const Set = @import("util/set.zig").Set;
+pub const AutoSet = @import("util/set.zig").AutoSet;
+pub const Map = @import("util/map.zig").Map;
+pub const AutoMap = @import("util/map.zig").AutoMap;
 
-pub const Language1 = @import("./util/lang-1.zig");
+pub const Language1 = @import("util/lang-1.zig");
 
 pub fn printArray(comptime T: type, array: []const T, writer: anytype) !void {
     var follow = false;

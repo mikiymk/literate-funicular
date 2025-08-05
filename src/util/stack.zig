@@ -32,7 +32,9 @@ pub fn Stack(T: type) type {
         }
 
         pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-            return util.printArray(T, self.array.items, writer);
+            try writer.writeAll("{");
+            try util.printArray(T, self.array.items, writer);
+            try writer.writeAll("}");
         }
     };
 }

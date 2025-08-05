@@ -82,9 +82,15 @@ pub fn Set(T: type, Context: type) type {
             return result;
         }
 
+        pub fn iterator(self: @This()) SelfMap.KeyIterator {
+            return self.map.keyIterator();
+        }
+
         pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             var iter = self.map.keyIterator();
+            try writer.writeAll("{");
             try util.printIterator(&iter, writer);
+            try writer.writeAll("}");
         }
     };
 }

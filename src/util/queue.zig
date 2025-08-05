@@ -50,6 +50,7 @@ pub fn Queue(T: type) type {
         }
 
         pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.writeAll("{");
             if (self.head + self.count <= self.buf.len) {
                 try util.printArray(T, self.buf[self.head..(self.head + self.count)], writer);
             } else {
@@ -57,6 +58,7 @@ pub fn Queue(T: type) type {
                 try writer.print(", ", .{});
                 try util.printArray(T, self.buf[0..(self.head + self.count - self.buf.len)], writer);
             }
+            try writer.writeAll("}");
         }
 
         fn ensureCapacity(self: *@This(), a: Allocator) error{OutOfMemory}!void {

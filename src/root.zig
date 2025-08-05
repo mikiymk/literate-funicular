@@ -37,14 +37,16 @@ test {
     _ = utils.Queue;
     _ = utils.Set;
     _ = utils.AutoSet;
+    _ = utils.Map;
+    _ = utils.AutoMap;
 }
 
 pub const ParseFn = *const fn (a: std.mem.Allocator, source: []const u8) utils.Language1.ParseError!utils.Language1.ParseTree;
 pub const parse_fns = [_]ParseFn{
-    shunting_yard.parse,
-    recursive_descent.parse,
-    recursive_descent_loop.parse,
-    precedence_climb.parse,
-    operator_precedence.parse,
+    // shunting_yard.parse,
+    // recursive_descent.parse,
+    // recursive_descent_loop.parse,
+    // precedence_climb.parse,
+    // operator_precedence.parse,
     ll_1.parse,
 };
