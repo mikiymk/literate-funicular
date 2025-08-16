@@ -43,17 +43,14 @@ pub fn Set(T: type, Context: type) type {
         pub fn unions(self: *@This(), a: Allocator, other: @This()) !@This() {
             var result = @This(){ .map = SelfMap.empty };
             try result.map.ensureTotalCapacity(a, self.map.count() + other.map.count());
-            {
-                var key_iterator = self.map.keyIterator();
-                while (key_iterator.next()) |key| {
-                    _ = try result.map.put(a, key.*, {});
-                }
+            var iter = self.iterator();
+            while (iter.next()) |key| {
+                _ = try result.map.put(a, key.*, {});
             }
-            {
-                var key_iterator = other.map.keyIterator();
-                while (key_iterator.next()) |key| {
-                    _ = try result.map.put(a, key.*, {});
-                }
+
+            var iter2 = other.iterator();
+            while (iter2.next()) |key| {
+                _ = try result.map.put(a, key.*, {});
             }
             return result;
         }
@@ -61,8 +58,8 @@ pub fn Set(T: type, Context: type) type {
         pub fn intersection(self: *@This(), a: Allocator, other: @This()) !@This() {
             var result = @This(){ .map = SelfMap.empty };
             try result.map.ensureTotalCapacity(a, @min(self.map.count(), other.map.count()));
-            var key_iterator = self.map.keyIterator();
-            while (key_iterator.next()) |key| {
+            var iter = self.iterator();
+            while (iter.next()) |key| {
                 if (other.map.contains(key.*)) {
                     _ = try result.map.put(a, key.*, {});
                 }
@@ -73,13 +70,22 @@ pub fn Set(T: type, Context: type) type {
         pub fn difference(self: *@This(), a: Allocator, other: @This()) !@This() {
             var result = @This(){ .map = SelfMap.empty };
             try result.map.ensureTotalCapacity(a, self.map.count());
-            var key_iterator = self.map.keyIterator();
-            while (key_iterator.next()) |key| {
+            var iter = self.iterator();
+            while (iter.next()) |key| {
                 if (!other.map.contains(key.*)) {
                     _ = try result.map.put(a, key.*, {});
                 }
             }
             return result;
+        }
+
+        pub fn equal(self: @This(), other: @This()) bool {
+            if (self.count() != other.count()) return false;
+            var iter = self.iterator();
+            while (iter.next()) |key| {
+                if (!other.contains(key.*)) return false;
+            }
+            return true;
         }
 
         pub fn iterator(self: @This()) SelfMap.KeyIterator {
