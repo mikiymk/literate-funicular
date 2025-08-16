@@ -34,7 +34,7 @@ pub fn parse(a: Allocator, source: []const u8) ParseError!ParseTree {
         .{ .left = prim_expr, .right = &.{Symbol{ .term = number }} },
         .{ .left = prim_expr, .right = &.{ Symbol{ .term = paren_left }, Symbol{ .n_term = expr }, Symbol{ .term = paren_right } } },
     };
-    const table = createTable(a, defines) catch |err| switch (err) {
+    var table = createTable(a, defines) catch |err| switch (err) {
         error.InvalidGrammar => {
             debug.printLn("invalid grammar", .{});
             return error.InvalidSyntax;
@@ -175,7 +175,7 @@ fn createTable(a: Allocator, defines: []const Define) GrammarError!LLTable {
     var follow_sets = try FollowSets.init(a, defines, first_sets);
     defer follow_sets.deinit(a);
 
-    const ll_table = try createLLTable(a, defines, term_set, non_term_set, first_sets, follow_sets);
+    const ll_table = try LLTable.init(a, defines, first_sets, follow_sets);
 
     debug.end("構文解析表の作成");
     return ll_table;
@@ -202,33 +202,6 @@ fn createSymbolSet(a: Allocator, defines: []const Define) Allocator.Error!struct
 
     debug.end("記号集合の作成");
     return .{ term_set, non_term_set };
-}
-
-fn createFollowSets(a: Allocator, defines: []const Define, term_set: TermSet, non_term_set: NTermSet, first_sets: FirstSets) Allocator.Error!FollowSets {
-    debug.begin("First集合の作成");
-    const follow_sets: FollowSets = undefined;
-    _ = a;
-    _ = defines;
-    _ = term_set;
-    _ = non_term_set;
-    _ = first_sets;
-
-    debug.end("First集合の作成");
-    return follow_sets;
-}
-
-fn createLLTable(a: Allocator, defines: []const Define, term_set: TermSet, non_term_set: NTermSet, first_sets: FirstSets, follow_sets: FollowSets) Allocator.Error!LLTable {
-    debug.begin("LL構文解析表の作成");
-    const ll_table: LLTable = undefined;
-    _ = a;
-    _ = defines;
-    _ = term_set;
-    _ = non_term_set;
-    _ = first_sets;
-    _ = follow_sets;
-
-    debug.end("LL構文解析表の作成");
-    return ll_table;
 }
 
 const FirstSets = struct {
@@ -351,10 +324,12 @@ const FollowSets = struct {
 
     non_term_follow_sets: NonTermMap,
 
+    const empty: FollowSets = .{ .non_term_follow_sets = .empty };
+
     fn init(a: Allocator, defines: []const Define, first_sets: FirstSets) Allocator.Error!FollowSets {
         debug.begin("Follow集合の作成");
 
-        var sets: FollowSets = .{ .non_term_follow_sets = .empty };
+        var sets = FollowSets.empty;
         _ = try sets.add(a, defines[0].left, .end);
 
         // Fo(a)にFo(b)を追加する関係のリスト
@@ -427,14 +402,84 @@ const FollowSets = struct {
         try self.non_term_follow_sets.insert(a, n_term, set);
         return prev_count != set.count();
     }
+
+    fn get(self: FollowSets, n_term: NTerm) ?FollowSet {
+        return self.non_term_follow_sets.get(n_term);
+    }
 };
 
 const LLTable = struct {
-    const empty = @This(){};
+    const TableKey = struct {
+        n_term: NTerm,
+        term: TermOrEnd,
+    };
+    const TableContext = struct {
+        pub fn hash(_: @This(), v: TableKey) u64 {
+            const Tag = std.meta.Tag(TermOrEnd);
+            var h = std.hash.Wyhash.init(0);
+            h.update(v.n_term.name);
+            h.update(std.mem.asBytes(&@as(Tag, v.term)));
+            switch (v.term) {
+                .term => |t| h.update(t.name),
+                else => {},
+            }
+            return h.final();
+        }
 
-    pub fn deinit(self: @This(), a: Allocator) void {
-        _ = self;
-        _ = a;
+        pub fn eql(_: @This(), l: TableKey, r: TableKey) bool {
+            if (std.mem.eql(u8, l.n_term.name, r.n_term.name)) return false;
+            const Tag = std.meta.Tag(TermOrEnd);
+            if (@as(Tag, l.term) != @as(Tag, r.term)) return false;
+            return switch (l.term) {
+                .term => std.hash_map.eqlString(l.term.term.name, r.term.term.name),
+                else => true,
+            };
+        }
+    };
+
+    const TableMap = Map(TableKey, Define, TableContext);
+
+    table: TableMap,
+
+    pub fn init(a: Allocator, defines: []const Define, first_sets: FirstSets, follow_sets: FollowSets) GrammarError!LLTable {
+        debug.begin("LL表の作成");
+
+        var table = LLTable{ .table = TableMap.empty };
+        for (defines) |define| {
+            var first_set = try first_sets.get(a, define.right);
+            defer first_set.deinit(a);
+            {
+                var iter = first_set.iterator();
+                while (iter.next()) |term_or_empty| {
+                    switch (term_or_empty.*) {
+                        .term => |term| {
+                            const key = TableKey{ .n_term = define.left, .term = .{ .term = term } };
+                            if (table.table.contains(key)) return error.InvalidGrammar;
+                            _ = try table.table.insert(a, key, define);
+                        },
+                        .empty => {},
+                    }
+                }
+            }
+
+            if (first_set.count() == 0 or first_set.contains(.empty)) {
+                const follow_set = follow_sets.get(define.left) orelse continue;
+                var iter = follow_set.iterator();
+                while (iter.next()) |term_or_end| {
+                    const key = TableKey{ .n_term = define.left, .term = term_or_end.* };
+                    if (table.table.contains(key)) return error.InvalidGrammar;
+                    _ = try table.table.insert(a, key, define);
+                }
+            }
+        }
+        debug.printLn("LL表: {}", .{table.table});
+
+        debug.end("LL表の作成");
+        return table;
+    }
+
+    pub fn deinit(self: *@This(), a: Allocator) void {
+        self.table.deinit(a);
     }
 };
 

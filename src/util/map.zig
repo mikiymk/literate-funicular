@@ -27,7 +27,7 @@ pub fn Map(K: type, V: type, Context: type) type {
             return self.map.get(key);
         }
 
-        pub fn contains(self: *@This(), key: K) bool {
+        pub fn contains(self: @This(), key: K) bool {
             return self.map.contains(key);
         }
 

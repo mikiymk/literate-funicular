@@ -24,7 +24,7 @@ pub fn Set(T: type, Context: type) type {
             try self.map.put(a, value, {});
         }
 
-        pub fn contains(self: *@This(), value: T) bool {
+        pub fn contains(self: @This(), value: T) bool {
             return self.map.contains(value);
         }
 
@@ -36,7 +36,7 @@ pub fn Set(T: type, Context: type) type {
             self.map.clearRetainingCapacity();
         }
 
-        pub fn count(self: *@This()) usize {
+        pub fn count(self: @This()) usize {
             return self.map.count();
         }
 
