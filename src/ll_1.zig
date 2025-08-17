@@ -169,6 +169,8 @@ fn createTable(a: Allocator, defines: []const Define) GrammarError!LLTable {
     debug.printLn("終端記号  : {}", .{term_set});
     debug.printLn("非終端記号: {}", .{non_term_set});
 
+    _ = try removeLeftRecursion(a, defines);
+
     var first_sets = try FirstSets.init(a, defines);
     defer first_sets.deinit(a);
 
@@ -176,6 +178,7 @@ fn createTable(a: Allocator, defines: []const Define) GrammarError!LLTable {
     defer follow_sets.deinit(a);
 
     const ll_table = try LLTable.init(a, defines, first_sets, follow_sets);
+    debug.printLn("LL表: {}", .{ll_table});
 
     debug.end("構文解析表の作成");
     return ll_table;
@@ -202,6 +205,73 @@ fn createSymbolSet(a: Allocator, defines: []const Define) Allocator.Error!struct
 
     debug.end("記号集合の作成");
     return .{ term_set, non_term_set };
+}
+
+fn removeLeftRecursion(a: Allocator, defines: []const Define) Allocator.Error!bool {
+    // グラフのサイクル検出アルゴリズムを使う
+
+    // 隣接リストを作成
+    var adj = Map(NTerm, NTermSet, TermContext).empty;
+    defer {
+        var iter = adj.map.valueIterator();
+        while (iter.next()) |value| {
+            value.deinit(a);
+        }
+        adj.deinit(a);
+    }
+    for (defines) |define| {
+        if (define.right.len > 0 and define.right[0] == .n_term) {
+            var adj_set = adj.get(define.left) orelse NTermSet.empty;
+            try adj_set.insert(a, define.right[0].n_term);
+            try adj.insert(a, define.left, adj_set);
+        }
+    }
+
+    debug.printLn("隣接リスト: {}", .{adj});
+
+    var visited = Map(NTerm, bool, TermContext).empty;
+    defer visited.deinit(a);
+    var recStack = Map(NTerm, bool, TermContext).empty;
+    defer recStack.deinit(a);
+
+    debug.printLn("サイクルを検出する", .{});
+    // 再帰関数でサイクルを検出
+    var iter = adj.map.keyIterator();
+    while (iter.next()) |key| {
+        debug.printLn("記号: {}", .{key});
+        if (!(visited.get(key.*) orelse false) and
+            try isCyclic(a, adj, key.*, &visited, &recStack))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+fn isCyclic(
+    a: Allocator,
+    adj: Map(NTerm, NTermSet, TermContext),
+    v: NTerm,
+    visited: *Map(NTerm, bool, TermContext),
+    recStack: *Map(NTerm, bool, TermContext),
+) Allocator.Error!bool {
+    if (recStack.contains(v)) return true;
+    if (visited.contains(v)) return false;
+
+    try visited.insert(a, v, true);
+    try recStack.insert(a, v, true);
+
+    const set = adj.get(v) orelse NTermSet.empty;
+    var iter = set.iterator();
+    while (iter.next()) |x| {
+        if (try isCyclic(a, adj, x.*, visited, recStack)) {
+            return true;
+        }
+    }
+
+    recStack.delete(v);
+    return false;
 }
 
 const FirstSets = struct {
@@ -472,7 +542,6 @@ const LLTable = struct {
                 }
             }
         }
-        debug.printLn("LL表: {}", .{table.table});
 
         debug.end("LL表の作成");
         return table;
@@ -480,6 +549,13 @@ const LLTable = struct {
 
     pub fn deinit(self: *@This(), a: Allocator) void {
         self.table.deinit(a);
+    }
+
+    pub fn format(self: @This(), _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        var iter = self.table.map.iterator();
+        while (iter.next()) |define| {
+            try writer.print("{} / {}: {}\n", .{ define.key_ptr.n_term, define.key_ptr.term, define.value_ptr });
+        }
     }
 };
 
